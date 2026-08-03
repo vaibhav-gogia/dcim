@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: dcim
+      POSTGRES_USER: dcim
+      POSTGRES_PASSWORD: dcim
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dcim"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://dcim:dcim@postgres:5432/dcim
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/srv
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    image: node:20-slim
+    working_dir: /srv
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/srv
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

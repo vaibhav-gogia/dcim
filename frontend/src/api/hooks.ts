@@ -1,0 +1,88 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { api } from "./client";
+import {
+  DataCenter,
+  DataCenterFloor,
+  OutletActionResponse,
+  PDUWithOutlets,
+  PowerActionResponse,
+  RackElevation,
+  SystemDetail,
+  SystemHealth,
+} from "./types";
+
+export function useDataCenters() {
+  return useQuery({
+    queryKey: ["datacenters"],
+    queryFn: () => api.get<DataCenter[]>("/datacenters"),
+  });
+}
+
+export function useDataCenterFloor(datacenterId: string) {
+  return useQuery({
+    queryKey: ["datacenter-floor", datacenterId],
+    queryFn: () => api.get<DataCenterFloor>(`/datacenters/${datacenterId}/floor`),
+    enabled: !!datacenterId,
+  });
+}
+
+export function useRackElevation(rackId: string) {
+  return useQuery({
+    queryKey: ["rack-elevation", rackId],
+    queryFn: () => api.get<RackElevation>(`/racks/${rackId}/elevation`),
+    enabled: !!rackId,
+    refetchInterval: 5000,
+  });
+}
+
+export function useRackPdus(rackId: string) {
+  return useQuery({
+    queryKey: ["rack-pdus", rackId],
+    queryFn: () => api.get<PDUWithOutlets[]>(`/racks/${rackId}/pdus`),
+    enabled: !!rackId,
+    refetchInterval: 5000,
+  });
+}
+
+export function useSystemDetail(systemId: string | null) {
+  return useQuery({
+    queryKey: ["system", systemId],
+    queryFn: () => api.get<SystemDetail>(`/systems/${systemId}`),
+    enabled: !!systemId,
+  });
+}
+
+export function useSystemHealth(systemId: string | null) {
+  return useQuery({
+    queryKey: ["system-health", systemId],
+    queryFn: () => api.get<SystemHealth>(`/systems/${systemId}/health`),
+    enabled: !!systemId,
+    refetchInterval: 3000,
+  });
+}
+
+export function usePowerAction(systemId: string, rackId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (action: "on" | "off" | "cycle") =>
+      api.post<PowerActionResponse>(`/systems/${systemId}/power/${action}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rack-elevation", rackId] });
+      queryClient.invalidateQueries({ queryKey: ["system-health", systemId] });
+      queryClient.invalidateQueries({ queryKey: ["system", systemId] });
+    },
+  });
+}
+
+export function useOutletAction(pduId: string, rackId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ outletId, action }: { outletId: string; action: "on" | "off" | "cycle" }) =>
+      api.post<OutletActionResponse>(`/pdus/${pduId}/outlets/${outletId}/${action}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["rack-pdus", rackId] });
+      queryClient.invalidateQueries({ queryKey: ["rack-elevation", rackId] });
+    },
+  });
+}

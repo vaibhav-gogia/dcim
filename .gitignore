@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Env
+.env
+
+# OS
+.DS_Store
+
+# Claude Code local harness state
+.claude/
