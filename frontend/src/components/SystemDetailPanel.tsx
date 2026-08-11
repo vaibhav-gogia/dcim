@@ -1,7 +1,16 @@
 import { usePowerAction, useSystemDetail, useSystemHealth } from "../api/hooks";
-import { POWER_STATE_COLOR } from "./powerColors";
+import { colors, fontSize, radius, space } from "../theme";
 import PowerActionButtons from "./PowerActionButtons";
 import { FanGauge, PsuStatus, TempGauge } from "./SensorGauge";
+import StatusBadge from "./StatusBadge";
+
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <div style={{ fontSize: fontSize.xs, fontWeight: 600, letterSpacing: 0.4, textTransform: "uppercase", color: colors.textMuted, margin: `${space.lg}px 0 ${space.sm}px` }}>
+      {children}
+    </div>
+  );
+}
 
 export default function SystemDetailPanel({
   systemId,
@@ -17,58 +26,50 @@ export default function SystemDetailPanel({
   const powerAction = usePowerAction(systemId, rackId);
 
   if (!system) return null;
+  const powerState = health?.power_state ?? system.power_state;
 
   return (
     <div
       style={{
-        width: 300,
-        padding: 16,
-        background: "#1a2029",
-        border: "1px solid #4a5568",
-        borderRadius: 8,
+        width: 380,
+        padding: space.lg,
+        background: colors.surface1,
+        border: `1px solid ${colors.border}`,
+        borderRadius: radius.md,
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
-        <h3 style={{ margin: 0 }}>{system.name}</h3>
-        <button onClick={onClose}>×</button>
+        <h3 style={{ margin: 0, fontSize: fontSize.xl, color: colors.textPrimary }}>{system.name}</h3>
+        <button
+          onClick={onClose}
+          style={{ background: "none", border: "none", color: colors.textMuted, fontSize: fontSize.xl, cursor: "pointer", lineHeight: 1 }}
+        >
+          ×
+        </button>
       </div>
-      <div style={{ fontSize: 12, color: "#9aa5b1", marginBottom: 8 }}>
+      <div style={{ fontSize: fontSize.sm, color: colors.textMuted, marginBottom: space.md }}>
         {system.system_type} · U{system.u_position}-{system.u_position + system.u_height - 1}
       </div>
 
-      <div
-        style={{
-          display: "inline-block",
-          padding: "2px 8px",
-          borderRadius: 4,
-          background: POWER_STATE_COLOR[(health?.power_state ?? system.power_state)],
-          color: "#0f1319",
-          fontSize: 12,
-          marginBottom: 12,
-        }}
-      >
-        {health?.power_state ?? system.power_state}
+      <StatusBadge state={powerState} />
+
+      <div style={{ marginTop: space.md }}>
+        <PowerActionButtons powerState={powerState} onAction={(action) => powerAction.mutate(action)} pending={powerAction.isPending} />
       </div>
 
-      <PowerActionButtons
-        powerState={health?.power_state ?? system.power_state}
-        onAction={(action) => powerAction.mutate(action)}
-        pending={powerAction.isPending}
-      />
-
       {health && (
-        <div style={{ marginTop: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Temperatures</div>
+        <div>
+          <SectionLabel>Temperatures</SectionLabel>
           {Object.entries(health.temps_c).map(([label, value]) => (
             <TempGauge key={label} label={label} value={value} />
           ))}
 
-          <div style={{ fontSize: 12, fontWeight: 600, margin: "12px 0 4px" }}>Fans</div>
+          <SectionLabel>Fans</SectionLabel>
           {Object.entries(health.fans_rpm).map(([label, rpm]) => (
             <FanGauge key={label} label={label} rpm={rpm} />
           ))}
 
-          <div style={{ fontSize: 12, fontWeight: 600, margin: "12px 0 4px" }}>PSUs</div>
+          <SectionLabel>PSUs</SectionLabel>
           {Object.entries(health.psus).map(([label, status]) => (
             <PsuStatus key={label} label={label} status={status} />
           ))}

@@ -28,7 +28,7 @@ MANUFACTURERS = ["Dell", "HPE", "Supermicro", "Lenovo"]
 
 async def seed() -> None:
     async with async_session_maker() as db:
-        dc = DataCenter(name="DC-East-01", location="Ashburn, VA")
+        dc = DataCenter(name="DC-East-01", location="Markham, ON")
         db.add(dc)
         await db.flush()
 

@@ -1,20 +1,26 @@
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import { useDataCenterFloor } from "../api/hooks";
 import DataCenterFloorView from "../components/DataCenterFloorView";
+import PageShell from "../components/PageShell";
+import { colors } from "../theme";
 
 export default function DataCenterPage() {
   const { datacenterId } = useParams<{ datacenterId: string }>();
   const { data: floor, isLoading } = useDataCenterFloor(datacenterId!);
 
-  if (isLoading || !floor) return <div style={{ padding: 24 }}>Loading...</div>;
+  if (isLoading || !floor) {
+    return (
+      <PageShell crumbs={[{ label: "Data Centers", to: "/" }]} title="Loading...">
+        <div style={{ color: colors.textMuted }}>Loading...</div>
+      </PageShell>
+    );
+  }
 
   return (
-    <div style={{ padding: 24 }}>
-      <Link to="/">← Data Centers</Link>
-      <h1>{floor.name}</h1>
-      <p style={{ color: "#9aa5b1" }}>Click a rack to view it.</p>
+    <PageShell crumbs={[{ label: "Data Centers", to: "/" }, { label: floor.name }]} title={floor.name}>
+      <p style={{ color: colors.textMuted, marginTop: 0 }}>Click a rack to view it.</p>
       <DataCenterFloorView racks={floor.racks} />
-    </div>
+    </PageShell>
   );
 }

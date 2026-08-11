@@ -1,5 +1,30 @@
+import { ReactNode } from "react";
+
 import { PowerState } from "../api/types";
-import { isTransient } from "./powerColors";
+import { isTransient } from "./statusTokens";
+import { colors, fontSize, radius } from "../theme";
+
+function ActionButton({ children, disabled, onClick }: { children: ReactNode; disabled: boolean; onClick: () => void }) {
+  return (
+    <button
+      disabled={disabled}
+      onClick={onClick}
+      style={{
+        flex: 1,
+        padding: "7px 10px",
+        fontSize: fontSize.sm,
+        borderRadius: radius.sm,
+        border: `1px solid ${colors.border}`,
+        background: colors.surface2,
+        color: disabled ? colors.textMuted : colors.textPrimary,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
 
 export default function PowerActionButtons({
   powerState,
@@ -13,16 +38,16 @@ export default function PowerActionButtons({
   const disabled = pending || isTransient(powerState);
 
   return (
-    <div style={{ display: "flex", gap: 8 }}>
-      <button disabled={disabled || powerState === "on"} onClick={() => onAction("on")}>
+    <div style={{ display: "flex", gap: 6 }}>
+      <ActionButton disabled={disabled || powerState === "on"} onClick={() => onAction("on")}>
         Power On
-      </button>
-      <button disabled={disabled || powerState === "off"} onClick={() => onAction("off")}>
+      </ActionButton>
+      <ActionButton disabled={disabled || powerState === "off"} onClick={() => onAction("off")}>
         Power Off
-      </button>
-      <button disabled={disabled} onClick={() => onAction("cycle")}>
+      </ActionButton>
+      <ActionButton disabled={disabled} onClick={() => onAction("cycle")}>
         Power Cycle
-      </button>
+      </ActionButton>
     </div>
   );
 }

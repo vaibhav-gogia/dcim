@@ -1,5 +1,6 @@
 import { useOutletAction, useRackPdus } from "../api/hooks";
 import { PDUWithOutlets } from "../api/types";
+import { colors, fontSize, radius, space } from "../theme";
 
 export default function PduPanel({ rackId }: { rackId: string }) {
   const { data: pdus } = useRackPdus(rackId);
@@ -7,10 +8,23 @@ export default function PduPanel({ rackId }: { rackId: string }) {
   if (!pdus) return null;
 
   return (
-    <div style={{ width: 260 }}>
+    <div style={{ width: 340 }}>
       {pdus.map((pdu) => (
         <PduCard key={pdu.id} pdu={pdu} rackId={rackId} />
       ))}
+    </div>
+  );
+}
+
+function Legend() {
+  return (
+    <div style={{ display: "flex", gap: space.md, fontSize: fontSize.xs, color: colors.textMuted, marginTop: space.sm }}>
+      <span>
+        <span style={{ color: colors.statusGood }}>●</span> on
+      </span>
+      <span>
+        <span style={{ color: colors.textMuted }}>○</span> off
+      </span>
     </div>
   );
 }
@@ -21,36 +35,36 @@ function PduCard({ pdu, rackId }: { pdu: PDUWithOutlets; rackId: string }) {
   return (
     <div
       style={{
-        marginBottom: 16,
-        padding: 12,
-        background: "#1a2029",
-        border: "1px solid #4a5568",
-        borderRadius: 8,
+        marginBottom: space.lg,
+        padding: space.md,
+        background: colors.surface1,
+        border: `1px solid ${colors.border}`,
+        borderRadius: radius.md,
       }}
     >
-      <div style={{ fontWeight: 600, marginBottom: 8 }}>{pdu.name}</div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+      <div style={{ fontWeight: 600, fontSize: fontSize.md, marginBottom: space.sm, color: colors.textPrimary }}>{pdu.name}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
         {pdu.outlets.map((outlet) => (
           <div
             key={outlet.id}
             title={outlet.connected_system_name ?? "unconnected"}
             style={{
-              padding: "4px 2px",
+              padding: "6px 2px",
               textAlign: "center",
-              fontSize: 10,
-              borderRadius: 4,
-              background: outlet.state === "on" ? "#2e8b57" : "#3a4350",
-              color: outlet.state === "on" ? "#0f1319" : "#9aa5b1",
+              fontSize: fontSize.xs,
+              borderRadius: radius.sm,
+              background: outlet.state === "on" ? colors.statusGood : colors.surface2,
+              color: outlet.state === "on" ? "#06280a" : colors.textMuted,
               cursor: "pointer",
+              userSelect: "none",
             }}
-            onClick={() =>
-              outletAction.mutate({ outletId: outlet.id, action: outlet.state === "on" ? "off" : "on" })
-            }
+            onClick={() => outletAction.mutate({ outletId: outlet.id, action: outlet.state === "on" ? "off" : "on" })}
           >
             {outlet.outlet_number}
           </div>
         ))}
       </div>
+      <Legend />
     </div>
   );
 }
