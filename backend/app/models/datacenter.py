@@ -10,4 +10,4 @@ class DataCenter(UUIDPKMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
     location: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    racks: Mapped[list["Rack"]] = relationship(back_populates="datacenter", cascade="all, delete-orphan")
+    data_halls: Mapped[list["DataHall"]] = relationship(back_populates="datacenter", cascade="all, delete-orphan")

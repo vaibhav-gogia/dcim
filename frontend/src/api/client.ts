@@ -6,8 +6,14 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
   });
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`${res.status} ${res.statusText}: ${body}`);
+    let message = `Request failed (${res.status}). Please try again.`;
+    try {
+      const body = await res.json();
+      if (typeof body.detail === "string") message = body.detail;
+      else if (Array.isArray(body.detail)) message = body.detail.map((item: { loc?: (string | number)[]; msg: string }) =>
+        `${item.loc?.slice(1).join(".") ?? "Input"}: ${item.msg}`).join("; ");
+    } catch { /* Keep the fallback message for non-JSON responses. */ }
+    throw new Error(message);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;

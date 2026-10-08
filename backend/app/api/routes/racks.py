@@ -1,15 +1,16 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import get_db, get_rack_or_404
+from app.api.deps import commit_inventory, get_db, get_rack_or_404
 from app.models.pdu import PDU
 from app.models.pdu_outlet import PDUOutlet
 from app.models.power_connection import PowerConnection
 from app.models.rack import Rack
+from app.models.data_hall import DataHall
 from app.models.system import System
 from app.schemas.pdu import PDUOutletRead, PDUWithOutletsRead
 from app.schemas.rack import RackCreate, RackRead
@@ -18,17 +19,21 @@ from app.schemas.system import RackElevationRead, SystemElevationRead
 router = APIRouter(tags=["racks"])
 
 
-@router.get("/datacenters/{datacenter_id}/racks", response_model=list[RackRead])
-async def list_racks(datacenter_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Rack).where(Rack.datacenter_id == datacenter_id))
+@router.get("/data-halls/{data_hall_id}/racks", response_model=list[RackRead])
+async def list_racks(data_hall_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    if await db.get(DataHall, data_hall_id) is None:
+        raise HTTPException(status_code=404, detail="Data hall not found")
+    result = await db.execute(select(Rack).where(Rack.data_hall_id == data_hall_id))
     return result.scalars().all()
 
 
-@router.post("/datacenters/{datacenter_id}/racks", response_model=RackRead, status_code=201)
-async def create_rack(datacenter_id: uuid.UUID, payload: RackCreate, db: AsyncSession = Depends(get_db)):
-    rack = Rack(datacenter_id=datacenter_id, **payload.model_dump())
+@router.post("/data-halls/{data_hall_id}/racks", response_model=RackRead, status_code=201)
+async def create_rack(data_hall_id: uuid.UUID, payload: RackCreate, db: AsyncSession = Depends(get_db)):
+    if await db.get(DataHall, data_hall_id) is None:
+        raise HTTPException(status_code=404, detail="Data hall not found")
+    rack = Rack(data_hall_id=data_hall_id, **payload.model_dump())
     db.add(rack)
-    await db.commit()
+    await commit_inventory(db)
     await db.refresh(rack)
     return rack
 
@@ -40,9 +45,12 @@ async def get_rack(rack: Rack = Depends(get_rack_or_404)):
 
 @router.patch("/racks/{rack_id}", response_model=RackRead)
 async def update_rack(payload: RackCreate, rack: Rack = Depends(get_rack_or_404), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(System).where(System.rack_id == rack.id))
+    if any(s.u_position + s.u_height - 1 > (payload.u_height if "u_height" in payload.model_fields_set else rack.u_height) for s in result.scalars().all()):
+        raise HTTPException(status_code=409, detail="Rack capacity cannot be smaller than its installed systems")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(rack, field, value)
-    await db.commit()
+    await commit_inventory(db)
     await db.refresh(rack)
     return rack
 
@@ -50,16 +58,18 @@ async def update_rack(payload: RackCreate, rack: Rack = Depends(get_rack_or_404)
 @router.delete("/racks/{rack_id}", status_code=204)
 async def delete_rack(rack: Rack = Depends(get_rack_or_404), db: AsyncSession = Depends(get_db)):
     await db.delete(rack)
-    await db.commit()
+    await commit_inventory(db)
 
 
 @router.get("/racks/{rack_id}/elevation", response_model=RackElevationRead)
 async def get_rack_elevation(rack_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    stmt = select(Rack).where(Rack.id == rack_id).options(selectinload(Rack.systems))
+    stmt = select(Rack).where(Rack.id == rack_id).options(selectinload(Rack.systems), selectinload(Rack.data_hall).selectinload(DataHall.datacenter))
     result = await db.execute(stmt)
-    rack = result.scalar_one()
+    rack = result.scalar_one_or_none()
+    if rack is None:
+        raise HTTPException(status_code=404, detail="Rack not found")
     systems = [SystemElevationRead.model_validate(s) for s in rack.systems]
-    return RackElevationRead(id=rack.id, name=rack.name, u_height=rack.u_height, systems=systems)
+    return RackElevationRead(id=rack.id, name=rack.name, u_height=rack.u_height, systems=systems, data_hall_id=rack.data_hall_id, data_hall_name=rack.data_hall.name, datacenter_id=rack.data_hall.datacenter_id, datacenter_name=rack.data_hall.datacenter.name)
 
 
 @router.get("/racks/{rack_id}/pdus", response_model=list[PDUWithOutletsRead])

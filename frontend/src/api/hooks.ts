@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./client";
 import {
   DataCenter,
+  DataHall,
+  DataHallFloor,
   DataCenterFloor,
   OutletActionResponse,
   PDUWithOutlets,
@@ -85,4 +87,14 @@ export function useOutletAction(pduId: string, rackId: string) {
       queryClient.invalidateQueries({ queryKey: ["rack-elevation", rackId] });
     },
   });
+}
+
+export function useDataCenter(datacenterId: string) {
+  return useQuery({ queryKey: ["datacenter", datacenterId], queryFn: () => api.get<DataCenter>(`/datacenters/${datacenterId}`), enabled: !!datacenterId });
+}
+export function useDataHalls(datacenterId: string) {
+  return useQuery({ queryKey: ["data-halls", datacenterId], queryFn: () => api.get<DataHall[]>(`/datacenters/${datacenterId}/data-halls`), enabled: !!datacenterId });
+}
+export function useDataHallFloor(dataHallId: string) {
+  return useQuery({ queryKey: ["data-hall-floor", dataHallId], queryFn: () => api.get<DataHallFloor>(`/data-halls/${dataHallId}/floor`), enabled: !!dataHallId });
 }

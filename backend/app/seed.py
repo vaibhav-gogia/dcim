@@ -8,6 +8,7 @@ import random
 
 from app.database import async_session_maker
 from app.models.datacenter import DataCenter
+from app.models.data_hall import DataHall
 from app.models.pdu import PDU
 from app.models.pdu_outlet import PDUOutlet
 from app.models.power_connection import PowerConnection
@@ -32,9 +33,13 @@ async def seed() -> None:
         db.add(dc)
         await db.flush()
 
+        hall = DataHall(datacenter_id=dc.id, name="Hall 1")
+        db.add(hall)
+        await db.flush()
+
         for rack_def in RACK_LAYOUT:
             rack = Rack(
-                datacenter_id=dc.id,
+                data_hall_id=hall.id,
                 name=rack_def["name"],
                 u_height=42,
                 pos_x=rack_def["pos_x"],

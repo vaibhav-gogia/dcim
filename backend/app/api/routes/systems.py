@@ -8,6 +8,7 @@ from app.api.deps import get_db, get_system_or_404
 from app.models.pdu_outlet import PDUOutlet
 from app.models.power_connection import PowerConnection
 from app.models.system import System
+from app.models.rack import Rack
 from app.schemas.power_connection import PowerConnectionCreate, PowerConnectionRead
 from app.schemas.system import SystemCreate, SystemRead, SystemUpdate
 
@@ -23,6 +24,11 @@ def _ranges_overlap(a_start: int, a_height: int, b_start: int, b_height: int) ->
 async def _assert_no_overlap(
     db: AsyncSession, rack_id: uuid.UUID, u_position: int, u_height: int, exclude_system_id: uuid.UUID | None = None
 ) -> None:
+    rack = await db.get(Rack, rack_id)
+    if rack is None:
+        raise HTTPException(status_code=404, detail="Rack not found")
+    if u_position + u_height - 1 > rack.u_height:
+        raise HTTPException(status_code=409, detail=f"System must fit within rack capacity of {rack.u_height}U")
     result = await db.execute(select(System).where(System.rack_id == rack_id))
     for existing in result.scalars().all():
         if exclude_system_id is not None and existing.id == exclude_system_id:

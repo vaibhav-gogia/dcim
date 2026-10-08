@@ -30,6 +30,10 @@ export interface SystemElevation {
 }
 
 export interface RackElevation {
+  data_hall_id: string;
+  data_hall_name: string;
+  datacenter_id: string;
+  datacenter_name: string;
   id: string;
   name: string;
   u_height: number;
@@ -81,4 +85,14 @@ export interface PowerActionResponse {
 
 export interface OutletActionResponse {
   state: "on" | "off";
+}
+
+export interface DataHall {
+  id: string;
+  datacenter_id: string;
+  name: string;
+}
+export interface DataHallFloor extends DataHall {
+  datacenter_name: string;
+  racks: FloorRack[];
 }

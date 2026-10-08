@@ -35,40 +35,43 @@ function ThemeToggle() {
 }
 
 export default function PageShell({ crumbs, title, actions, children }: { crumbs: Crumb[]; title: string; actions?: ReactNode; children: ReactNode }) {
+  const navigationCrumbs = crumbs.filter(crumb => crumb.label !== "DCIM");
   return (
     <div style={{ minHeight: "100vh" }}>
-      <header
-        style={{
-          padding: `${space.md}px ${space.xl}px`,
-          borderBottom: `1px solid ${colors.border}`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <div>
-          <div style={{ fontSize: fontSize.sm, color: colors.textMuted, marginBottom: 2 }}>
-            {crumbs.map((crumb, i) => (
-              <span key={i}>
-                {i > 0 && " / "}
-                {crumb.to ? (
-                  <Link to={crumb.to} style={{ color: colors.textMuted, textDecoration: "none" }}>
-                    {crumb.label}
-                  </Link>
-                ) : (
-                  <span style={{ color: colors.textSecondary }}>{crumb.label}</span>
-                )}
-              </span>
-            ))}
-          </div>
-          <h1 style={{ margin: 0, fontSize: fontSize.xxl, color: colors.textPrimary }}>{title}</h1>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: space.sm }}>
-          {actions}
-          <ThemeToggle />
-        </div>
+      <header style={{
+        padding: `${space.sm}px ${space.xl}px`,
+        borderBottom: `1px solid ${colors.border}`,
+        background: colors.surface0,
+        display: "flex",
+        gap: space.lg,
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}>
+        <nav aria-label="Breadcrumb" style={{ display: "flex", alignItems: "center", gap: space.md, minWidth: 0 }}>
+          <Link to="/" aria-label="DCIM home" style={{ display: "inline-flex", alignItems: "center", gap: space.sm, color: colors.textPrimary, textDecoration: "none", flexShrink: 0 }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+              <rect x="4" y="3" width="16" height="18" rx="3" />
+              <path d="M4 9h16M4 15h16M8 6h2M8 12h2M8 18h2" />
+            </svg>
+            <span style={{ fontSize: fontSize.sm, fontWeight: 650, letterSpacing: "0.08em" }}>DCIM</span>
+          </Link>
+          {navigationCrumbs.length > 0 && <ol style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: space.sm, listStyle: "none", margin: 0, padding: 0, fontSize: fontSize.sm }}>
+            {navigationCrumbs.map((crumb, i) => <li key={i} style={{ display: "flex", alignItems: "center", gap: space.sm }}>
+              <span aria-hidden="true" style={{ color: colors.textMuted }}>/</span>
+              {crumb.to ? <Link to={crumb.to} style={{ color: colors.textMuted, textDecoration: "none" }}>{crumb.label}</Link>
+                : <span aria-current="page" style={{ color: colors.textSecondary }}>{crumb.label}</span>}
+            </li>)}
+          </ol>}
+        </nav>
+        <ThemeToggle />
       </header>
-      <main style={{ padding: space.xl }}>{children}</main>
+      <main style={{ padding: space.xl }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: space.md, marginBottom: space.lg }}>
+          <h1 style={{ margin: 0, fontSize: fontSize.xl, fontWeight: 600, letterSpacing: "-0.025em", color: colors.textPrimary }}>{title}</h1>
+          {actions && <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: space.sm }}>{actions}</div>}
+        </div>
+        {children}
+      </main>
     </div>
   );
 }

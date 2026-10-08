@@ -1,20 +1,20 @@
 import uuid
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class RackCreate(BaseModel):
-    name: str
-    u_height: int = 42
-    pos_x: float = 0.0
-    pos_y: float = 0.0
+    name: str = Field(min_length=1, max_length=120, pattern=r"\S")
+    u_height: int = Field(default=42, ge=1)
+    pos_x: float = Field(default=0.0, ge=0, allow_inf_nan=False)
+    pos_y: float = Field(default=0.0, ge=0, allow_inf_nan=False)
 
 
 class RackRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    datacenter_id: uuid.UUID
+    data_hall_id: uuid.UUID
     name: str
     u_height: int
     pos_x: float

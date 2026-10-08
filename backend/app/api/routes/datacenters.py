@@ -3,10 +3,11 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
-from app.api.deps import get_datacenter_or_404, get_db
+from app.api.deps import commit_inventory, get_datacenter_or_404, get_db
 from app.models.datacenter import DataCenter
+from app.models.data_hall import DataHall
+from app.models.rack import Rack
 from app.schemas.datacenter import DataCenterCreate, DataCenterRead
 from app.schemas.rack import DataCenterFloorRead
 
@@ -23,7 +24,7 @@ async def list_datacenters(db: AsyncSession = Depends(get_db)):
 async def create_datacenter(payload: DataCenterCreate, db: AsyncSession = Depends(get_db)):
     dc = DataCenter(**payload.model_dump())
     db.add(dc)
-    await db.commit()
+    await commit_inventory(db)
     await db.refresh(dc)
     return dc
 
@@ -39,7 +40,7 @@ async def update_datacenter(
 ):
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(dc, field, value)
-    await db.commit()
+    await commit_inventory(db)
     await db.refresh(dc)
     return dc
 
@@ -47,14 +48,16 @@ async def update_datacenter(
 @router.delete("/{datacenter_id}", status_code=204)
 async def delete_datacenter(dc: DataCenter = Depends(get_datacenter_or_404), db: AsyncSession = Depends(get_db)):
     await db.delete(dc)
-    await db.commit()
+    await commit_inventory(db)
 
 
-@router.get("/{datacenter_id}/floor", response_model=DataCenterFloorRead)
+@router.get("/{datacenter_id}/floor", response_model=DataCenterFloorRead, deprecated=True)
 async def get_datacenter_floor(datacenter_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    stmt = select(DataCenter).where(DataCenter.id == datacenter_id).options(selectinload(DataCenter.racks))
+    """Legacy cross-hall inventory aggregate; use /data-halls/{id}/floor for layout."""
+    stmt = select(DataCenter).where(DataCenter.id == datacenter_id)
     result = await db.execute(stmt)
     dc = result.scalar_one_or_none()
     if dc is None:
         raise HTTPException(status_code=404, detail="Data center not found")
-    return DataCenterFloorRead(id=dc.id, name=dc.name, racks=dc.racks)
+    racks = await db.execute(select(Rack).join(DataHall).where(DataHall.datacenter_id == dc.id))
+    return DataCenterFloorRead(id=dc.id, name=dc.name, racks=racks.scalars().all())

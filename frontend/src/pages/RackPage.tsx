@@ -1,3 +1,4 @@
+import InventoryEditor, { rackFields, systemFields, InventoryButton } from "../components/InventoryEditor";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 
@@ -39,9 +40,12 @@ function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (mode: ViewM
 
 export default function RackPage() {
   const { rackId } = useParams<{ rackId: string }>();
-  const { data: rack, isLoading } = useRackElevation(rackId!);
+  const [editor, setEditor] = useState<"rack" | "add" | "system" | null>(null);
+  const { data: rack, isLoading, error } = useRackElevation(rackId!);
   const [selectedSystem, setSelectedSystem] = useState<SystemElevation | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("visual");
+
+  if (error) return <PageShell crumbs={[{ label: "Data Centers", to: "/" }]} title="Unable to load rack"><p role="alert">{error.message}</p></PageShell>;
 
   if (isLoading || !rack) {
     return (
@@ -53,11 +57,13 @@ export default function RackPage() {
 
   return (
     <PageShell
-      crumbs={[{ label: "Data Centers", to: "/" }, { label: rack.name }]}
+      crumbs={[{ label: "Data Centers", to: "/" }, { label: rack.datacenter_name, to: `/dc/${rack.datacenter_id}` }, { label: rack.data_hall_name, to: `/hall/${rack.data_hall_id}` }, { label: rack.name }]}
       title={rack.name}
-      actions={<ViewToggle mode={viewMode} onChange={setViewMode} />}
+      actions={<><InventoryButton onClick={() => setEditor("rack")}>Edit rack</InventoryButton><InventoryButton onClick={() => setEditor("add")}>Add system</InventoryButton>{selectedSystem && <InventoryButton onClick={() => setEditor("system")}>Edit selected system</InventoryButton>}<ViewToggle mode={viewMode} onChange={setViewMode} /></>}
     >
-      <div style={{ display: "flex", gap: space.xl, alignItems: "flex-start" }}>
+      {editor && <InventoryEditor key={`${editor}-${selectedSystem?.id}`} title={editor === "rack" ? "Edit rack" : editor === "add" ? "Add system" : "Edit system"} path={editor === "rack" ? `/racks/${rackId}` : editor === "add" ? `/racks/${rackId}/systems` : `/systems/${selectedSystem!.id}`} editing={editor !== "add"} fields={editor === "rack" ? rackFields : systemFields} onClose={() => setEditor(null)} />}
+      {!rack.systems.length && <p>No systems yet. Add a system and set its starting U and height.</p>}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: space.xl, alignItems: "flex-start" }}>
         {viewMode === "visual" ? (
           <>
             <RackElevation rack={rack} selectedSystemId={selectedSystem?.id ?? null} onSelectSystem={setSelectedSystem} />

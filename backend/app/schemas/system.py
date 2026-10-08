@@ -1,29 +1,29 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SystemCreate(BaseModel):
-    name: str
-    u_position: int
-    u_height: int = 1
-    system_type: str = "server"
-    manufacturer: str | None = None
-    model: str | None = None
-    serial_number: str | None = None
+    name: str = Field(min_length=1, max_length=120, pattern=r"\S")
+    u_position: int = Field(ge=1)
+    u_height: int = Field(default=1, ge=1)
+    system_type: str = Field(default="server", min_length=1, max_length=32, pattern=r"\S")
+    manufacturer: str | None = Field(default=None, max_length=120)
+    model: str | None = Field(default=None, max_length=120)
+    serial_number: str | None = Field(default=None, max_length=120)
     bmc_driver_type: str = "simulated"
     bmc_address: str | None = None
 
 
 class SystemUpdate(BaseModel):
-    name: str | None = None
-    u_position: int | None = None
-    u_height: int | None = None
-    system_type: str | None = None
-    manufacturer: str | None = None
-    model: str | None = None
-    serial_number: str | None = None
+    name: str = Field(default=None, min_length=1, max_length=120, pattern=r"\S")
+    u_position: int = Field(default=None, ge=1)
+    u_height: int = Field(default=None, ge=1)
+    system_type: str = Field(default=None, min_length=1, max_length=32, pattern=r"\S")
+    manufacturer: str | None = Field(default=None, max_length=120)
+    model: str | None = Field(default=None, max_length=120)
+    serial_number: str | None = Field(default=None, max_length=120)
 
 
 class SystemRead(BaseModel):
@@ -57,6 +57,10 @@ class SystemElevationRead(BaseModel):
 
 
 class RackElevationRead(BaseModel):
+    data_hall_id: uuid.UUID
+    data_hall_name: str
+    datacenter_id: uuid.UUID
+    datacenter_name: str
     id: uuid.UUID
     name: str
     u_height: int

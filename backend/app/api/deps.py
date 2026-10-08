@@ -2,6 +2,7 @@ import uuid
 
 from fastapi import Depends, HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -73,3 +74,12 @@ async def get_outlet_or_404(outlet_id: uuid.UUID, db: AsyncSession = Depends(get
     if outlet is None:
         raise HTTPException(status_code=404, detail="Outlet not found")
     return outlet
+
+
+async def commit_inventory(db: AsyncSession) -> None:
+    """Report inventory constraint conflicts without leaking database internals."""
+    try:
+        await db.commit()
+    except IntegrityError as error:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Inventory conflicts with an existing record. Check that the name is unique.") from error

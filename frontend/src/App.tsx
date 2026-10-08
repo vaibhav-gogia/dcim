@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 
 import DataCenterListPage from "./pages/DataCenterListPage";
 import DataCenterPage from "./pages/DataCenterPage";
+import DataHallPage from "./pages/DataHallPage";
 import RackPage from "./pages/RackPage";
 
 export default function App() {
@@ -9,6 +10,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<DataCenterListPage />} />
       <Route path="/dc/:datacenterId" element={<DataCenterPage />} />
+      <Route path="/hall/:dataHallId" element={<DataHallPage />} />
       <Route path="/rack/:rackId" element={<RackPage />} />
     </Routes>
   );
