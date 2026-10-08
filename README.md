@@ -82,3 +82,20 @@ Only unassigned outlets in the same rack are offered. The API also rejects
 occupied outlets and duplicate PSU labels on a system. **Disconnect** removes the
 inventory connection without changing outlet power. A/B labels document wiring;
 the simulator does not model physical feed failures or electrical redundancy.
+
+## Inventory search
+
+Choose **Search inventory** in the navigation bar. Search systems across all
+sites by name, serial number, manufacturer/model, rack, hall, DC name, or DC
+location. Combine data-center, data-hall, manufacturer, system-type, and
+power-state filters. Results are paginated (25 per page) and refresh every five
+seconds. Search/filter state is stored in the URL for sharing and browser history.
+Click a system name to open its rack with that system's detail panel selected.
+
+API: `GET /api/inventory/systems` accepts `q`, `datacenter_id`, `data_hall_id`,
+`manufacturer`, `system_type`, `power_state`, `offset`, and `limit` (1–100).
+Filters combine with AND; text search is case-insensitive and treats wildcard
+characters literally. `GET /api/inventory/filters` supplies filter options.
+Simulated power transitions are evaluated at query time; search does not poll
+physical equipment. Inventory search currently returns systems, with their
+parent locations, rather than separate PDU/rack result types.

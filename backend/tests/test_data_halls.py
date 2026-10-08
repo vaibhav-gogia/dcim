@@ -136,3 +136,40 @@ async def test_complete_rack_power_setup_and_wiring_guards(client):
     await create(client, f"/systems/{other_system['id']}/power-connections", {'psu_label': 'PSU1', 'pdu_outlet_id': outlet_a})
     assert (await client.post(f"/racks/{rack['id']}/pdus", json={'name': 'Invalid', 'outlet_count': 0})).status_code == 422
     assert (await client.post(f"/racks/{uuid.uuid4()}/pdus", json={'name': 'Missing rack'})).status_code == 404
+
+
+async def test_inventory_search_filters_pagination_and_transitions(client):
+    from datetime import datetime, timedelta, timezone
+    from sqlalchemy import update
+    from app.models.system import System
+    dc = await create(client, '/datacenters', {'name': 'search-test-' + uuid.uuid4().hex})
+    hall_a = await create(client, f"/datacenters/{dc['id']}/data-halls", {'name': 'Hall A'})
+    hall_b = await create(client, f"/datacenters/{dc['id']}/data-halls", {'name': 'Hall B'})
+    rack_a = await create(client, f"/data-halls/{hall_a['id']}/racks", {'name': 'Rack A'})
+    rack_b = await create(client, f"/data-halls/{hall_b['id']}/racks", {'name': 'Rack B'})
+    first = await create(client, f"/racks/{rack_a['id']}/systems", {'name': 'Alpha', 'u_position': 1, 'manufacturer': 'Dell', 'serial_number': 'SN%_001', 'model': 'R750'})
+    await create(client, f"/racks/{rack_b['id']}/systems", {'name': 'Beta', 'u_position': 1, 'manufacturer': 'HPE', 'system_type': 'storage'})
+    async def search(**params):
+        return await client.get("/inventory/systems", params={"datacenter_id": dc["id"], **params})
+    assert (await search()).json()['total'] == 2
+    result = (await search(**{'q': 'sn%_001'})).json()
+    assert result['total'] == 1
+    assert result['items'][0]['id'] == first['id']
+    assert result['items'][0]['data_hall_name'] == 'Hall A'
+    assert (await search(**{'manufacturer': 'Dell', 'system_type': 'storage'})).json()['total'] == 0
+    assert (await search(**{'data_hall_id': hall_b['id'], 'manufacturer': 'HPE'})).json()['total'] == 1
+    assert (await search(**{'q': 'r750'})).json()['total'] == 1
+    assert (await search(**{'q': 'hall b'})).json()['total'] == 1
+    page = (await search(**{'offset': 1, 'limit': 1})).json()
+    assert page['total'] == 2 and page['items'][0]['name'] == 'Beta'
+    assert (await search(**{'q': 'absent-unique-value'})).json()['items'] == []
+    assert (await search(**{'power_state': 'invalid'})).status_code == 422
+    assert (await search(**{'limit': 101})).status_code == 422
+    async for db in app.dependency_overrides[get_db]():
+        await db.execute(update(System).where(System.id == uuid.UUID(first['id'])).values(power_state='booting', power_state_updated_at=datetime.now(timezone.utc) - timedelta(seconds=30)))
+        await db.commit()
+    assert (await search(**{'power_state': 'on'})).json()['total'] == 1
+    assert (await search(**{'power_state': 'booting'})).json()['total'] == 0
+    options = (await client.get('/inventory/filters')).json()
+    assert 'Dell' in options['manufacturers'] and 'storage' in options['system_types']
+    assert any(h['id'] == hall_b['id'] and h['datacenter_id'] == dc['id'] for h in options['data_halls'])

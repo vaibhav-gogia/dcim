@@ -1,6 +1,6 @@
 import InventoryEditor, { rackFields, systemFields, InventoryButton } from "../components/InventoryEditor";
 import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { useRackElevation } from "../api/hooks";
 import { SystemElevation } from "../api/types";
@@ -42,7 +42,11 @@ export default function RackPage() {
   const { rackId } = useParams<{ rackId: string }>();
   const [editor, setEditor] = useState<"rack" | "add" | "system" | null>(null);
   const { data: rack, isLoading, error } = useRackElevation(rackId!);
-  const [selectedSystem, setSelectedSystem] = useState<SystemElevation | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedSystem = rack?.systems.find(system => system.id === searchParams.get("system")) ?? null;
+  function setSelectedSystem(system: SystemElevation | null) {
+    setSearchParams(previous => { const next = new URLSearchParams(previous); if (system) next.set("system", system.id); else next.delete("system"); return next; }, { replace: true });
+  }
   const [viewMode, setViewMode] = useState<ViewMode>("visual");
 
   if (error) return <PageShell crumbs={[{ label: "Data Centers", to: "/" }]} title="Unable to load rack"><p role="alert">{error.message}</p></PageShell>;

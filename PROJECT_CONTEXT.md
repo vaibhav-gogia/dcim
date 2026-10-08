@@ -144,3 +144,17 @@ its success now refreshes the PDU view. Power-action errors are visible.
 Hardware and feed-failure behavior remain simulated, not real redundancy checks.
 Frontend build and 28 tests including rollback-only end-to-end rack power setup
 passed; browser visual verification remains blocked by computer-use permissions.
+
+## Inventory search and filtering
+
+Added a global Search inventory navigation link and `/inventory` page. Backend
+system search joins rack/hall/DC context, supports literal case-insensitive text
+search, combined location/manufacturer/type/power filters, and bounded pagination.
+UI stores filters/search/page in the URL, refreshes results every five seconds,
+and links to `/rack/{id}?system={id}` to open the system detail panel directly.
+Rack selection now follows that URL parameter. Simulated transition states are
+computed at search time using the driver's transition-duration constants, so
+completed booting/cycling/shutdown states do not remain stale in filters.
+No schema migration. Search returns systems, not standalone PDU/rack matches.
+Validation includes PostgreSQL integration tests for serial-number wildcard
+escaping, combined filters, parent context, pagination, and completed transitions.

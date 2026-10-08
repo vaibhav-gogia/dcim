@@ -63,7 +63,7 @@ export default function PageShell({ crumbs, title, actions, children }: { crumbs
             </li>)}
           </ol>}
         </nav>
-        <ThemeToggle />
+        <div style={{ display: "flex", alignItems: "center", gap: space.md }}><Link to="/inventory" style={{ color: colors.textSecondary, fontSize: fontSize.sm, textDecoration: "none" }}>Search inventory</Link><ThemeToggle /></div>
       </header>
       <main style={{ padding: space.xl }}>
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: space.md, marginBottom: space.lg }}>
