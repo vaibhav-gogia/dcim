@@ -1,11 +1,11 @@
 import uuid
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PowerConnectionCreate(BaseModel):
     pdu_outlet_id: uuid.UUID
-    psu_label: str | None = None
+    psu_label: str = Field(min_length=1, max_length=32, pattern=r"\S")
 
 
 class PowerConnectionRead(BaseModel):

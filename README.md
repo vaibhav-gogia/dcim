@@ -37,8 +37,8 @@ in the visual or list view to reveal **Edit selected system**. Rack positions us
 floor column/row coordinates; system positions start at U1 at the bottom.
 Systems must fit within rack capacity and cannot overlap existing systems.
 
-Power and health remain simulated. PDU setup, power connections, and deletion
-are currently available through the API docs rather than these forms.
+Power and health remain simulated. Inventory deletion is currently available
+through the API docs rather than these forms.
 
 ## Data halls
 
@@ -65,3 +65,20 @@ docker compose exec -e RUN_DB_TESTS=1 backend pytest -q
 ```
 
 These integration tests roll back their changes and preserve existing inventory.
+
+## Rack power setup
+
+1. Open a rack and add a system.
+2. In the PDUs panel, choose **Add PDU** to create PDU A and PDU B, each with
+   1–96 outlets. New outlets start off. **Edit PDU** renames a PDU; outlet count
+   is fixed after creation.
+3. Select the system in the rack or list view. Under **Power connections**, enter
+   PSU1 and select an outlet on PDU A, then connect PSU2 to an outlet on PDU B.
+4. Use **Power On**. The simulator enables its connected outlets and enters
+   booting, then on as polling resolves the transition. Power Off and Power Cycle
+   remain available, and outlet buttons toggle individual outlets.
+
+Only unassigned outlets in the same rack are offered. The API also rejects
+occupied outlets and duplicate PSU labels on a system. **Disconnect** removes the
+inventory connection without changing outlet power. A/B labels document wiring;
+the simulator does not model physical feed failures or electrical redundancy.

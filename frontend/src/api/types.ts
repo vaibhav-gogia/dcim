@@ -96,3 +96,10 @@ export interface DataHallFloor extends DataHall {
   datacenter_name: string;
   racks: FloorRack[];
 }
+
+export interface PowerConnection {
+  id: string;
+  system_id: string;
+  pdu_outlet_id: string;
+  psu_label: string | null;
+}

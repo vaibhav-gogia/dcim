@@ -70,8 +70,8 @@ The working tree was clean before adding these handoff documents.
 
 Real hardware drivers, network ping monitoring, resource/usage collection,
 reservations, authentication/multi-user support, and real OS provisioning.
-Inventory creation/editing forms were added on October 8 (see below). Deletion,
-PDU setup, and power-connection editing still use the API.
+Inventory creation/editing forms were added on October 8 (see below). Inventory deletion still uses the API. PDU setup and power-connection editing
+were subsequently added to the UI (see rack power setup milestone below).
 
 ## Running and data
 
@@ -129,3 +129,18 @@ preserved by comparing IDs before/after migration. Frontend production build,
 27 tests (including rollback-only PostgreSQL hierarchy integration tests), live
 API navigation, and Alembic schema comparison passed. Browser visual verification
 remains unavailable because computer-control permissions were not enabled.
+
+## Rack power setup milestone
+
+User approved completing the basic rack/system/two-PDU/PSU-wiring workflow.
+Added PDU creation (1–96 outlets, initially off), PDU renaming, and assignment
+lists to the PDUs panel, accessible in both visual and list views. System details
+now list PSU-to-outlet connections and provide connect/disconnect forms. Only
+free same-rack outlets are offered. Wiring does not toggle physical power.
+Backend enforces rack existence, occupied-outlet rejection, same-rack wiring,
+and unique nonblank PSU labels per system; connections can be listed by system.
+No schema migration needed. Power On already enables connected simulated outlets;
+its success now refreshes the PDU view. Power-action errors are visible.
+Hardware and feed-failure behavior remain simulated, not real redundancy checks.
+Frontend build and 28 tests including rollback-only end-to-end rack power setup
+passed; browser visual verification remains blocked by computer-use permissions.

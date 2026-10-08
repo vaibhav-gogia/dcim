@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db, get_system_or_404
+from app.api.deps import commit_inventory, get_db, get_system_or_404
 from app.models.pdu_outlet import PDUOutlet
+from app.models.pdu import PDU
 from app.models.power_connection import PowerConnection
 from app.models.system import System
 from app.models.rack import Rack
@@ -84,16 +85,34 @@ async def delete_system(system: System = Depends(get_system_or_404), db: AsyncSe
     await db.commit()
 
 
+@router.get("/systems/{system_id}/power-connections", response_model=list[PowerConnectionRead])
+async def list_power_connections(system: System = Depends(get_system_or_404), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(PowerConnection).where(PowerConnection.system_id == system.id).order_by(PowerConnection.psu_label))
+    return result.scalars().all()
+
+
 @router.post("/systems/{system_id}/power-connections", response_model=PowerConnectionRead, status_code=201)
 async def create_power_connection(
     payload: PowerConnectionCreate, system: System = Depends(get_system_or_404), db: AsyncSession = Depends(get_db)
 ):
+    # Serialize assignments for one system, including duplicate PSU-label checks.
+    await db.execute(select(System).where(System.id == system.id).with_for_update())
     outlet = await db.get(PDUOutlet, payload.pdu_outlet_id)
     if outlet is None:
         raise HTTPException(status_code=404, detail="PDU outlet not found")
-    connection = PowerConnection(system_id=system.id, pdu_outlet_id=outlet.id, psu_label=payload.psu_label)
+    pdu = await db.get(PDU, outlet.pdu_id)
+    if pdu.rack_id != system.rack_id:
+        raise HTTPException(status_code=409, detail="Choose an outlet in the same rack as this system")
+    label = payload.psu_label.strip()
+    existing = await db.execute(select(PowerConnection).where(PowerConnection.system_id == system.id))
+    if any(c.psu_label and c.psu_label.strip().casefold() == label.casefold() for c in existing.scalars().all()):
+        raise HTTPException(status_code=409, detail="This PSU label already has a connection. Disconnect it first.")
+    occupied = await db.execute(select(PowerConnection).where(PowerConnection.pdu_outlet_id == outlet.id))
+    if occupied.scalar_one_or_none() is not None:
+        raise HTTPException(status_code=409, detail="This outlet is already assigned to a system")
+    connection = PowerConnection(system_id=system.id, pdu_outlet_id=outlet.id, psu_label=label)
     db.add(connection)
-    await db.commit()
+    await commit_inventory(db)
     await db.refresh(connection)
     return connection
 
@@ -104,4 +123,4 @@ async def delete_power_connection(connection_id: uuid.UUID, db: AsyncSession = D
     if connection is None:
         raise HTTPException(status_code=404, detail="Power connection not found")
     await db.delete(connection)
-    await db.commit()
+    await commit_inventory(db)

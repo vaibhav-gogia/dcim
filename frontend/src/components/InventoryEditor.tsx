@@ -14,6 +14,11 @@ export const rackFields: Field[] = [
   { key: "pos_x", label: "Floor column", type: "number", step: 0.1, min: 0, defaultValue: 0 },
   { key: "pos_y", label: "Floor row", type: "number", step: 0.1, min: 0, defaultValue: 0 },
 ];
+export const pduFields: Field[] = [
+  { key: "name", label: "Name", required: true },
+  { key: "outlet_count", label: "Number of outlets (1–96)", type: "number", min: 1, defaultValue: 24 },
+];
+export const pduEditFields: Field[] = [{ key: "name", label: "Name", required: true }];
 export const systemFields: Field[] = [
   { key: "name", label: "Name", required: true },
   { key: "u_position", label: "Starting U", type: "number", min: 1, defaultValue: 1 },

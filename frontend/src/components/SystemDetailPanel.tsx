@@ -3,6 +3,7 @@ import { colors, fontSize, radius, space } from "../theme";
 import PowerActionButtons from "./PowerActionButtons";
 import { FanGauge, PsuStatus, TempGauge } from "./SensorGauge";
 import StatusBadge from "./StatusBadge";
+import PowerWiring from "./PowerWiring";
 
 function SectionLabel({ children }: { children: string }) {
   return (
@@ -56,6 +57,9 @@ export default function SystemDetailPanel({
       <div style={{ marginTop: space.md }}>
         <PowerActionButtons powerState={powerState} onAction={(action) => powerAction.mutate(action)} pending={powerAction.isPending} />
       </div>
+
+      {powerAction.error && <p role="alert" style={{ color: colors.statusCritical }}>{powerAction.error.message}</p>}
+      <PowerWiring key={systemId} systemId={systemId} rackId={rackId} />
 
       {health && (
         <div>

@@ -1,13 +1,18 @@
 import uuid
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PDUCreate(BaseModel):
-    name: str
-    outlet_count: int = 24
-    driver_type: str = "simulated"
-    address: str | None = None
+    name: str = Field(min_length=1, max_length=120, pattern=r"\S")
+    outlet_count: int = Field(default=24, ge=1, le=96)
+    driver_type: str = Field(default="simulated", pattern="^simulated$")
+    address: str | None = Field(default=None, max_length=255)
+
+
+class PDUUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=120, pattern=r"\S")
+    address: str | None = Field(default=None, max_length=255)
 
 
 class PDURead(BaseModel):

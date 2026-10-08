@@ -67,11 +67,11 @@ export default function RackPage() {
         {viewMode === "visual" ? (
           <>
             <RackElevation rack={rack} selectedSystemId={selectedSystem?.id ?? null} onSelectSystem={setSelectedSystem} />
-            <PduPanel rackId={rackId!} />
           </>
         ) : (
           <SystemsTable systems={rack.systems} selectedSystemId={selectedSystem?.id ?? null} onSelectSystem={setSelectedSystem} />
         )}
+        <PduPanel rackId={rackId!} />
         {selectedSystem && <SystemDetailPanel systemId={selectedSystem.id} rackId={rackId!} onClose={() => setSelectedSystem(null)} />}
       </div>
     </PageShell>

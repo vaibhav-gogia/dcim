@@ -9,6 +9,7 @@ import {
   OutletActionResponse,
   PDUWithOutlets,
   PowerActionResponse,
+  PowerConnection,
   RackElevation,
   SystemDetail,
   SystemHealth,
@@ -73,6 +74,7 @@ export function usePowerAction(systemId: string, rackId: string) {
       queryClient.invalidateQueries({ queryKey: ["rack-elevation", rackId] });
       queryClient.invalidateQueries({ queryKey: ["system-health", systemId] });
       queryClient.invalidateQueries({ queryKey: ["system", systemId] });
+      queryClient.invalidateQueries({ queryKey: ["rack-pdus", rackId] });
     },
   });
 }
@@ -97,4 +99,19 @@ export function useDataHalls(datacenterId: string) {
 }
 export function useDataHallFloor(dataHallId: string) {
   return useQuery({ queryKey: ["data-hall-floor", dataHallId], queryFn: () => api.get<DataHallFloor>(`/data-halls/${dataHallId}/floor`), enabled: !!dataHallId });
+}
+
+export function usePowerConnections(systemId: string) {
+  return useQuery({ queryKey: ["power-connections", systemId], queryFn: () => api.get<PowerConnection[]>(`/systems/${systemId}/power-connections`) });
+}
+export function useWirePower(systemId: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { pdu_outlet_id: string; psu_label: string }) => api.post(`/systems/${systemId}/power-connections`, body),
+    onSuccess: () => client.invalidateQueries(),
+  });
+}
+export function useUnwirePower() {
+  const client = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => api.delete(`/power-connections/${id}`), onSuccess: () => client.invalidateQueries() });
 }
