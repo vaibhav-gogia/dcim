@@ -4,6 +4,11 @@ Visual data center inventory and control: browse data centers → data halls →
 BMC health/power state, and control power at the system (BMC) or outlet (PDU) level. All hardware
 access goes through pluggable driver interfaces — simulated for now, real IPMI/Redfish/SNMP later.
 
+## Product direction
+
+See [the product plan](docs/PRODUCT_PLAN.md) for the mission, proposed Day 1
+scope, current gaps, and later opportunities.
+
 ## Stack
 
 - Backend: FastAPI + SQLAlchemy (async) + PostgreSQL

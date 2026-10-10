@@ -158,3 +158,14 @@ completed booting/cycling/shutdown states do not remain stale in filters.
 No schema migration. Search returns systems, not standalone PDU/rack matches.
 Validation includes PostgreSQL integration tests for serial-number wildcard
 escaping, combined filters, parent context, pagination, and completed transitions.
+
+## Product documentation pause
+
+User requested a mission statement, Day 1 scope, and later roadmap to preserve
+focus. Created `docs/PRODUCT_PLAN.md` and linked it from README and AGENTS.md.
+It distinguishes the current simulated foundation demo from a proposed Day 1
+customer pilot, records implemented versus missing features, and keeps lab/AI
+specializations as unvalidated options. Recommended next implementation is
+accountable operations: users, API-enforced permissions, action history, and
+power-action safeguards, after a foundation browser walkthrough. These are
+recommendations for review; no new implementation was authorized by this pause.
