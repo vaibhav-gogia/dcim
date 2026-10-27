@@ -8,6 +8,8 @@ access goes through pluggable driver interfaces — simulated for now, real IPMI
 
 See [the product plan](docs/PRODUCT_PLAN.md) for the mission, proposed Day 1
 scope, current gaps, and later opportunities.
+See [accounts and action history](docs/ACCOUNTS_AND_HISTORY.md) for roles,
+sessions, security settings, and verification instructions.
 
 ## Stack
 
@@ -17,26 +19,53 @@ scope, current gaps, and later opportunities.
 
 ## Running locally
 
-```
+For a fresh installation:
+
+```bash
 docker compose up -d postgres
 docker compose build backend
 docker compose run --rm backend alembic upgrade head
-docker compose run --rm backend python -m app.seed
 docker compose up -d backend frontend
+docker compose exec backend python -m app.bootstrap_admin
 ```
 
-- Backend API: http://localhost:8000 (docs at `/docs`)
+The interactive setup asks for a username and a 12–128 character password (hidden
+while typing). There are no default credentials. Open http://localhost:5173 to
+sign in. If accounts already exist, bootstrap refuses; use **Account** as an
+administrator to manage users. See [the account guide](docs/ACCOUNTS_AND_HISTORY.md).
+
+Optional demo data, **once on an empty inventory database only**:
+
+```bash
+docker compose exec backend python -m app.seed
+```
+
+For an existing installation, apply migrations and start the services without
+re-seeding or creating another initial administrator. Rebuild the backend when
+its dependencies change. This milestone requires FastAPI 0.121 or later.
+
 - Frontend: http://localhost:5173
+- Backend API: http://localhost:8000 (docs at `/docs`; inventory operations require sign-in)
+- **Account:** change your password; administrators can manage users.
+- **Activity:** review actions, actors, targets, and outcomes.
 
 ## Tests
 
-```
+```bash
+# Full suite, including database integration and role/session checks
+docker compose exec -e RUN_DB_TESTS=1 backend pytest -q
+
+# Without database integration tests
 docker compose run --rm backend pytest -q
 ```
 
+Database tests use temporary isolated schemas and remove them afterward; existing
+inventory is not changed. The test database user needs schema creation privileges.
+See [verification details](docs/ACCOUNTS_AND_HISTORY.md#verification-and-next-walkthrough).
+
 ## Managing inventory
 
-Use **Add data center** on the home page, **Add data hall** inside a data center,
+As an administrator, use **Add data center** on the home page, **Add data hall** inside a data center,
 **Add rack** inside a data hall, and **Add system** inside a rack. Each page also offers editing; select a system
 in the visual or list view to reveal **Edit selected system**. Rack positions use
 floor column/row coordinates; system positions start at U1 at the bottom.
@@ -69,7 +98,7 @@ Run database-backed hierarchy tests after migrations:
 docker compose exec -e RUN_DB_TESTS=1 backend pytest -q
 ```
 
-These integration tests roll back their changes and preserve existing inventory.
+These integration tests create and remove isolated test schemas, preserving existing inventory.
 
 ## Rack power setup
 

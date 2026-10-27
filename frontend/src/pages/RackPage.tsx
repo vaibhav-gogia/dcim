@@ -1,3 +1,5 @@
+import { AdminOnly } from "../AuthContext";
+import ActionHistory from "../components/ActionHistory";
 import DeleteRack from "../components/DeleteRack";
 import InventoryEditor, { rackFields, systemFields, InventoryButton } from "../components/InventoryEditor";
 import { useState } from "react";
@@ -65,7 +67,7 @@ export default function RackPage() {
     <PageShell
       crumbs={[{ label: "Data Centers", to: "/" }, { label: rack.datacenter_name, to: `/dc/${rack.datacenter_id}` }, { label: rack.data_hall_name, to: `/hall/${rack.data_hall_id}` }, { label: rack.name }]}
       title={rack.name}
-      actions={<><InventoryButton onClick={() => setEditor("rack")}>Edit rack</InventoryButton><InventoryButton onClick={() => setEditor("add")}>Add system</InventoryButton>{selectedSystem && <InventoryButton onClick={() => setEditor("system")}>Edit selected system</InventoryButton>}<ViewToggle mode={viewMode} onChange={setViewMode} /><InventoryButton style={{ color: colors.statusCritical }} onClick={() => { setEditor(null); setDeleting(true); }}>Delete rack</InventoryButton></>}
+      actions={<><AdminOnly><InventoryButton onClick={() => setEditor("rack")}>Edit rack</InventoryButton><InventoryButton onClick={() => setEditor("add")}>Add system</InventoryButton>{selectedSystem && <InventoryButton onClick={() => setEditor("system")}>Edit selected system</InventoryButton>}</AdminOnly><ViewToggle mode={viewMode} onChange={setViewMode} /><AdminOnly><InventoryButton style={{ color: colors.statusCritical }} onClick={() => { setEditor(null); setDeleting(true); }}>Delete rack</InventoryButton></AdminOnly></>}
     >
       {deleting && <DeleteRack rackId={rackId!} name={rack.name} hallId={rack.data_hall_id} onClose={() => setDeleting(false)} />}
       {editor && <InventoryEditor key={`${editor}-${selectedSystem?.id}`} title={editor === "rack" ? "Edit rack" : editor === "add" ? "Add system" : "Edit system"} path={editor === "rack" ? `/racks/${rackId}` : editor === "add" ? `/racks/${rackId}/systems` : `/systems/${selectedSystem!.id}`} editing={editor !== "add"} fields={editor === "rack" ? rackFields : systemFields} onClose={() => setEditor(null)} />}
@@ -81,6 +83,7 @@ export default function RackPage() {
         <PduPanel rackId={rackId!} />
         {selectedSystem && <SystemDetailPanel systemId={selectedSystem.id} rackId={rackId!} onClose={() => setSelectedSystem(null)} />}
       </div>
+      <ActionHistory key={rackId} rackId={rackId} />
     </PageShell>
   );
 }

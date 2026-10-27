@@ -17,21 +17,21 @@ from app.models.system import System
 __all__ = ["get_db"]
 
 
-async def get_datacenter_or_404(datacenter_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> DataCenter:
+async def get_datacenter_or_404(datacenter_id: uuid.UUID, db: AsyncSession = Depends(get_db, scope="function")) -> DataCenter:
     dc = await db.get(DataCenter, datacenter_id)
     if dc is None:
         raise HTTPException(status_code=404, detail="Data center not found")
     return dc
 
 
-async def get_rack_or_404(rack_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> Rack:
+async def get_rack_or_404(rack_id: uuid.UUID, db: AsyncSession = Depends(get_db, scope="function")) -> Rack:
     rack = await db.get(Rack, rack_id)
     if rack is None:
         raise HTTPException(status_code=404, detail="Rack not found")
     return rack
 
 
-async def get_system_or_404(system_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> System:
+async def get_system_or_404(system_id: uuid.UUID, db: AsyncSession = Depends(get_db, scope="function")) -> System:
     system = await db.get(System, system_id)
     if system is None:
         raise HTTPException(status_code=404, detail="System not found")
@@ -39,7 +39,7 @@ async def get_system_or_404(system_id: uuid.UUID, db: AsyncSession = Depends(get
 
 
 async def get_system_with_power_graph_or_404(
-    system_id: uuid.UUID, db: AsyncSession = Depends(get_db)
+    system_id: uuid.UUID, db: AsyncSession = Depends(get_db, scope="function")
 ) -> System:
     """System eager-loaded with power_connections -> pdu_outlet -> pdu, for power actions."""
     stmt = (
@@ -58,7 +58,7 @@ async def get_system_with_power_graph_or_404(
     return system
 
 
-async def get_pdu_or_404(pdu_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> PDU:
+async def get_pdu_or_404(pdu_id: uuid.UUID, db: AsyncSession = Depends(get_db, scope="function")) -> PDU:
     stmt = select(PDU).where(PDU.id == pdu_id).options(selectinload(PDU.outlets))
     result = await db.execute(stmt)
     pdu = result.scalar_one_or_none()
@@ -67,11 +67,11 @@ async def get_pdu_or_404(pdu_id: uuid.UUID, db: AsyncSession = Depends(get_db)) 
     return pdu
 
 
-async def get_outlet_or_404(outlet_id: uuid.UUID, db: AsyncSession = Depends(get_db)) -> PDUOutlet:
+async def get_outlet_or_404(outlet_id: uuid.UUID, pdu_id: uuid.UUID, db: AsyncSession = Depends(get_db, scope="function")) -> PDUOutlet:
     stmt = select(PDUOutlet).where(PDUOutlet.id == outlet_id).options(selectinload(PDUOutlet.pdu))
     result = await db.execute(stmt)
     outlet = result.scalar_one_or_none()
-    if outlet is None:
+    if outlet is None or outlet.pdu_id != pdu_id:
         raise HTTPException(status_code=404, detail="Outlet not found")
     return outlet
 

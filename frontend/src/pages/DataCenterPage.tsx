@@ -1,3 +1,4 @@
+import { AdminOnly } from "../AuthContext";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useDataCenter, useDataHalls } from "../api/hooks";
@@ -16,7 +17,7 @@ export default function DataCenterPage() {
   const dc = center.data;
   return (
     <PageShell crumbs={[{ label: "Data Centers", to: "/" }, { label: dc.name }]} title={dc.name}
-      actions={<><InventoryButton onClick={() => setEditor("dc")}>Edit data center</InventoryButton><InventoryButton onClick={() => setEditor("hall")}>Add data hall</InventoryButton></>}>
+      actions={<AdminOnly><InventoryButton onClick={() => setEditor("dc")}>Edit data center</InventoryButton><InventoryButton onClick={() => setEditor("hall")}>Add data hall</InventoryButton></AdminOnly>}>
       {editor && <InventoryEditor key={editor} title={editor === "dc" ? "Edit data center" : "Add data hall"}
         path={editor === "dc" ? `/datacenters/${dc.id}` : `/datacenters/${dc.id}/data-halls`}
         editing={editor === "dc"} fields={editor === "dc" ? dataCenterFields : dataHallFields} onClose={() => setEditor(null)} />}

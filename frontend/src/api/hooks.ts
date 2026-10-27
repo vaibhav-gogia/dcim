@@ -69,7 +69,7 @@ export function usePowerAction(systemId: string, rackId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (action: "on" | "off" | "cycle") =>
-      api.post<PowerActionResponse>(`/systems/${systemId}/power/${action}`),
+      api.post<PowerActionResponse>(`/systems/${systemId}/power/${action}`, undefined, { "X-Confirm-Action": "yes" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rack-elevation", rackId] });
       queryClient.invalidateQueries({ queryKey: ["system-health", systemId] });
@@ -83,7 +83,7 @@ export function useOutletAction(pduId: string, rackId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ outletId, action }: { outletId: string; action: "on" | "off" | "cycle" }) =>
-      api.post<OutletActionResponse>(`/pdus/${pduId}/outlets/${outletId}/${action}`),
+      api.post<OutletActionResponse>(`/pdus/${pduId}/outlets/${outletId}/${action}`, undefined, { "X-Confirm-Action": "yes" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rack-pdus", rackId] });
       queryClient.invalidateQueries({ queryKey: ["rack-elevation", rackId] });

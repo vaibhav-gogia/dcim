@@ -1,7 +1,7 @@
 """Database-backed hierarchy tests. Run with RUN_DB_TESTS=1 after migrations.
 
-Each test runs inside an outer transaction; API commits use savepoints so all
-created inventory is rolled back without touching pre-existing records.
+Each test uses a unique temporary PostgreSQL schema with independent request
+sessions. The schema is removed afterward without touching existing inventory.
 """
 import os
 import uuid
@@ -15,26 +15,46 @@ from sqlalchemy.pool import NullPool
 from app.config import settings
 from app.database import get_db
 from app.main import app
+from app.models.security import User
+from app.security import hash_password
 
 pytestmark = pytest.mark.skipif(os.getenv("RUN_DB_TESTS") != "1", reason="Set RUN_DB_TESTS=1 to run PostgreSQL integration tests")
 
 
 @pytest_asyncio.fixture
 async def client():
+    # Independent request sessions match production (including audit writes).
+    # A unique schema keeps test data completely separate from real inventory.
+    from sqlalchemy import text
+    from app.models import Base
+    schema = 'dcim_test_' + uuid.uuid4().hex
     engine = create_async_engine(settings.database_url, poolclass=NullPool)
-    async with engine.connect() as connection:
-        transaction = await connection.begin()
-        async def override_db():
-            async with AsyncSession(bind=connection, expire_on_commit=False, join_transaction_mode="create_savepoint") as session:
-                yield session
+    test_engine = engine.execution_options(schema_translate_map={None: schema})
+    async with engine.begin() as connection:
+        await connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+    async def override_db():
+        async with AsyncSession(bind=test_engine, expire_on_commit=False) as session:
+            yield session
+    try:
+        async with test_engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+        username = 'test-admin-' + uuid.uuid4().hex[:10]
+        async with AsyncSession(bind=test_engine, expire_on_commit=False) as setup:
+            setup.add(User(username=username, password_hash=hash_password('test-password-12345'), role='admin'))
+            await setup.commit()
         app.dependency_overrides[get_db] = override_db
-        try:
-            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test/api") as http:
-                yield http
-        finally:
-            app.dependency_overrides.pop(get_db, None)
-            await transaction.rollback()
-    await engine.dispose()
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test/api") as http:
+            http.headers['origin'] = 'http://localhost:5173'
+            login = await http.post('/auth/login', json={'username': username, 'password': 'test-password-12345'})
+            assert login.status_code == 200, login.text
+            http.headers['x-csrf-token'] = http.cookies['dcim_csrf']
+            http.headers['x-confirm-action'] = 'yes'
+            yield http
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        async with engine.begin() as connection:
+            await connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
+        await engine.dispose()
 
 
 async def create(client, path, payload):

@@ -1,3 +1,4 @@
+from app.protected_route import ProtectedRoute
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,7 +7,7 @@ from app.models.system import System
 from app.schemas.system import SystemHealthRead
 from app.services.health_service import get_system_health
 
-router = APIRouter(tags=["health"])
+router = APIRouter(route_class=ProtectedRoute, tags=["health"])
 
 
 @router.get("/ping", tags=["meta"])
@@ -15,7 +16,7 @@ async def ping():
 
 
 @router.get("/systems/{system_id}/health", response_model=SystemHealthRead)
-async def system_health(system: System = Depends(get_system_or_404), db: AsyncSession = Depends(get_db)):
+async def system_health(system: System = Depends(get_system_or_404), db: AsyncSession = Depends(get_db, scope="function")):
     power_state, sensors = await get_system_health(db, system)
     return SystemHealthRead(
         power_state=power_state,

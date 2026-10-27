@@ -1,3 +1,5 @@
+import { usePermissions } from "../AuthContext";
+import ActionHistory from "./ActionHistory";
 import { usePowerAction, useSystemDetail, useSystemHealth } from "../api/hooks";
 import { colors, fontSize, radius, space } from "../theme";
 import PowerActionButtons from "./PowerActionButtons";
@@ -22,6 +24,7 @@ export default function SystemDetailPanel({
   rackId: string;
   onClose: () => void;
 }) {
+  const { canOperate } = usePermissions();
   const { data: system } = useSystemDetail(systemId);
   const { data: health } = useSystemHealth(systemId);
   const powerAction = usePowerAction(systemId, rackId);
@@ -55,12 +58,16 @@ export default function SystemDetailPanel({
       <StatusBadge state={powerState} />
 
       <div style={{ marginTop: space.md }}>
-        <PowerActionButtons powerState={powerState} onAction={(action) => powerAction.mutate(action)} pending={powerAction.isPending} />
+        {canOperate ? <PowerActionButtons powerState={powerState} onAction={(action) => {
+          if (action !== "on" && !window.confirm(`${action === "off" ? "Power off" : "Power cycle"} ${system.name}? This interrupts its workloads.`)) return;
+          powerAction.mutate(action);
+        }} pending={powerAction.isPending} /> : <p>Viewer access · power controls are read-only.</p>}
       </div>
 
       {powerAction.error && <p role="alert" style={{ color: colors.statusCritical }}>{powerAction.error.message}</p>}
       <PowerWiring key={systemId} systemId={systemId} rackId={rackId} />
 
+      <ActionHistory key={systemId} systemId={systemId} />
       {health && (
         <div>
           <SectionLabel>Temperatures</SectionLabel>

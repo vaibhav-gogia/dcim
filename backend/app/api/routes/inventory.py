@@ -1,3 +1,4 @@
+from app.protected_route import ProtectedRoute
 """Search system inventory with location context and bounded result pages."""
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -14,7 +15,7 @@ from app.models.datacenter import DataCenter
 from app.drivers.bmc.base import PowerState
 from app.drivers.bmc.simulated import BOOT_SECS, SHUTDOWN_SECS, CYCLE_SECS
 
-router = APIRouter(prefix="/inventory", tags=["inventory"])
+router = APIRouter(route_class=ProtectedRoute, prefix="/inventory", tags=["inventory"])
 
 
 def effective_power_state():
@@ -37,7 +38,7 @@ async def search_systems(
     power_state: PowerState | None = None,
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=25, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db, scope="function"),
 ):
     state = effective_power_state()
     stmt = select(System, Rack, DataHall, DataCenter, state.label('effective_state')).join(Rack, System.rack_id == Rack.id).join(DataHall, Rack.data_hall_id == DataHall.id).join(DataCenter, DataHall.datacenter_id == DataCenter.id)
@@ -61,7 +62,7 @@ async def search_systems(
 
 
 @router.get("/filters")
-async def inventory_filters(db: AsyncSession = Depends(get_db)):
+async def inventory_filters(db: AsyncSession = Depends(get_db, scope="function")):
     manufacturers = (await db.execute(select(System.manufacturer).where(System.manufacturer.is_not(None), System.manufacturer != '').distinct().order_by(System.manufacturer))).scalars().all()
     types = (await db.execute(select(System.system_type).distinct().order_by(System.system_type))).scalars().all()
     halls = (await db.execute(select(DataHall).order_by(DataHall.name))).scalars().all()

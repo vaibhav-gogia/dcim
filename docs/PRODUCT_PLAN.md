@@ -1,6 +1,6 @@
 # DCIM product plan
 
-Last updated: October 8, 2026.
+Last updated: October 27, 2026.
 
 This is the working product plan. It captures agreed direction and proposes a
 launch boundary for review. The current inventory-first direction is agreed;
@@ -45,9 +45,9 @@ customer-ready hardware product:
    limited, documented hardware configuration with access control and traceable
    actions. This is the proposed first external release, not broad vendor support.
 
-Success scenario: an operator creates a DC and hall, adds a rack and system,
-sets up two PDUs, connects the PSUs, finds the system through search, performs an
-authorized power action, and sees its outcome and history.
+Success scenario: an administrator creates a DC and hall, adds a rack and system,
+sets up two PDUs, and connects the PSUs. An operator finds the system through
+search, performs an authorized power action, and sees its outcome and history.
 
 ## Day 1 scope and current status
 
@@ -60,16 +60,22 @@ authorized power action, and sees its outcome and history.
 | PSU-to-outlet wiring | Implemented, same-rack only | Show assignments; reject occupied outlets and duplicate PSU labels |
 | System and outlet power controls | Simulated | Support one agreed pilot hardware configuration and report failures honestly |
 | Temperature, fan, and PSU health | Simulated snapshots | Timestamp real readings and make stale or failed collection visible |
-| Users and permissions | Not implemented | Viewer, operator, and administrator roles; enforce permissions in the API |
-| Action history | Not implemented | Record actor, target, time, action, and outcome for inventory/wiring/power changes |
-| Power-action safeguards | Partial: disabled transient-state buttons and visible API errors | Confirm disruptive actions; track pending/succeeded/failed/unknown outcomes without blind retries |
+| Users and permissions | Implemented: local accounts, revocable sessions, API-enforced viewer/operator/admin roles | Viewer, operator, and administrator roles; enforce permissions in the API |
+| Action history | Implemented: global and rack/system history, including failures and pending/unknown outcomes | Record actor, target, time, action, and outcome for inventory/wiring/power changes |
+| Power-action safeguards | Implemented for simulated operations: confirmations, explicit API confirmation headers, and transition outcomes | Confirm disruptive actions; track pending/succeeded/failed/unknown outcomes without blind retries |
 | Inventory onboarding | Manual UI/API | Prove the pilot's onboarding is manageable; add CSV import if manual entry blocks it |
-| Deployment and recovery | Docker dev setup and migrations | Document installation, configuration, credentials, backup and restore; verify recovery |
+| Deployment and recovery | Docker dev setup, migrations, and documented account/session settings; recovery verification outstanding | Document installation, configuration, credentials, backup and restore; verify recovery |
 
-“Implemented” describes current code, not production readiness. Latest development
-checks reported a passing frontend build and 29 backend tests, including
-PostgreSQL integration tests. Recent browser verification remains outstanding
-because computer-use permissions were unavailable. Recheck before release.
+“Implemented” describes current code, not production readiness. The latest full
+implementation checks on October 27 reported a passing frontend build and 41
+backend tests, including isolated PostgreSQL security tests. The first-admin
+sign-in screen was inspected in a browser. Signed-in role/confirmation/history
+flows still need a browser walkthrough. No real-hardware compatibility or
+production security certification is implied. Documentation updates do not rerun
+these checks.
+
+See [accounts and history](ACCOUNTS_AND_HISTORY.md) for setup, the permission
+matrix, operational limitations, and the remaining walkthrough.
 
 ## Explicitly outside Day 1
 
@@ -79,7 +85,7 @@ because computer-use permissions were unavailable. Recheck before release.
 - Deep CPU/GPU/memory utilization and workload analytics.
 - Capacity forecasting, placement optimization, and electrical/cooling planning.
 - AI diagnosis, predictive maintenance, and autonomous remediation.
-- Elaborate 3D floor plans, drag-and-drop layout editing, and advanced reporting.
+- Elaborate 3D floor plans and advanced reporting; basic within-hall dragging is implemented.
 - Full network/IP address management and replacement of existing customer tools.
 - Billing, a multi-tenant SaaS control plane, and enterprise integration breadth.
 
@@ -89,38 +95,42 @@ Deletion of other inventory types, moving racks between halls, and bulk operatio
 remain backlog candidates. Do not expand Day 1
 for these unless a pilot workflow requires them.
 
-## Logical next milestone: accountable operations
+## Accountable operations: implemented, browser acceptance pending
 
-**Recommended next implementation: users, permissions, and an action history.**
-The inventory/setup/search loop now exists. The next gap is knowing who can
-change equipment and who performed an operational action.
+The user approved and implementation added:
 
-Acceptance criteria:
+- Local sign-in, sign-out, first-admin setup, and password changes.
+- Viewer read access; operator read/power access; administrator inventory/wiring/
+  layout/account management. These roles apply globally to the installation.
+- API authorization independently of the UI, CSRF/origin checks, session expiry
+  and revocation, and protection of the last active administrator.
+- Action history with actor, target, time, changed field names, and outcomes,
+  including authenticated denied/failed mutations and sign-in events.
+- Confirmations for disruptive system/outlet power actions.
+- Pending power transitions distinguished from observed completion and unknown
+  outcomes. No automatic retry of power mutations.
 
-- A viewer can browse/search but cannot change inventory, wiring, or power.
-- An operator can run permitted operational actions; an administrator manages
-  users and inventory. Define the exact permission matrix before implementation.
-- API calls enforce permissions even when the UI is bypassed.
-- Changes and power requests produce history entries with actor, target, time,
-  and outcome; failed actions are visible too.
-- Operators confirm power-off, cycling, and other disruptive actions.
-- Action status distinguishes a confirmed failure from an unknown hardware
-  outcome; the system does not silently retry a potentially completed action.
-- Tests cover role boundaries and history recording, followed by a browser pass.
+Automated role/session/history checks pass in the last reported run. The milestone
+is not fully accepted until the signed-in browser walkthrough is completed.
+Initial administrator creation is a user-run local setup step; the documentation
+does not claim it has been completed. Instructions are in
+[the account guide](ACCOUNTS_AND_HISTORY.md#first-administrator).
 
-Do not start new feature implementation as part of this documentation pause.
-Authentication approach and the permission matrix remain implementation decisions
-to settle before this milestone begins.
+## Logical next step: verify the signed-in workflow
 
-## Sequence after accountable operations
+Use the [walkthrough checklist](ACCOUNTS_AND_HISTORY.md#verification-and-next-walkthrough)
+to verify each role, action confirmations, history updates, sign-out/session
+revocation, and responsive layouts. Fix defects found in that workflow before
+expanding scope. This documentation task does not authorize additional features.
+
+## Remaining sequence
 
 | Stage | Deliverable | Exit condition |
 | --- | --- | --- |
-| 1. Confirm foundation | Browser walkthrough and fixes for setup/search/wiring flows | The complete demo scenario works without manual API intervention |
-| 2. Accountable operations | Permissions, audit history, and action safeguards | The acceptance criteria above pass |
-| 3. Hardware pilot | One customer-selected BMC/PDU configuration, reachability, timestamps, and collection failures | Demonstrate real reads/actions and failure handling on representative equipment |
-| 4. Pilot readiness | Installation, onboarding, backup/restore, and operator instructions | A pilot operator can use and recover the installation with documented support |
-| 5. Specialization | One validated customer workflow | A customer identifies the problem, success measure, and willingness to pay |
+| 1. Complete browser acceptance | Signed-in setup/search/wiring/layout and role/history walkthrough | The scenario works in a real browser for all three roles, with no permission bypass |
+| 2. Hardware pilot | One customer-selected BMC/PDU configuration, reachability, timestamps, and collection failures | Demonstrate real reads/actions and failure handling on representative equipment |
+| 3. Pilot readiness | Deployment review, onboarding, backup/restore, and operator instructions | A pilot operator can use and recover the installation with documented support |
+| 4. Specialization | One validated customer workflow | A customer identifies the problem, success measure, and willingness to pay |
 
 Customer interviews and securing access to representative hardware should proceed
 alongside foundation work. Vendor selection depends on that access; no protocol

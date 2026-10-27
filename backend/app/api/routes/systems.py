@@ -1,3 +1,4 @@
+from app.protected_route import ProtectedRoute
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,7 +15,7 @@ from app.models.rack import Rack
 from app.schemas.power_connection import PowerConnectionCreate, PowerConnectionRead
 from app.schemas.system import SystemCreate, SystemRead, SystemUpdate
 
-router = APIRouter(tags=["systems"])
+router = APIRouter(route_class=ProtectedRoute, tags=["systems"])
 
 
 def _ranges_overlap(a_start: int, a_height: int, b_start: int, b_height: int) -> bool:
@@ -44,7 +45,7 @@ async def _assert_no_overlap(
 
 
 @router.get("/racks/{rack_id}/systems", response_model=list[SystemRead])
-async def list_systems(rack_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def list_systems(rack_id: uuid.UUID, db: AsyncSession = Depends(get_db, scope="function")):
     result = await db.execute(select(System).where(System.rack_id == rack_id))
     systems = result.scalars().all()
     for system in systems:
@@ -53,7 +54,7 @@ async def list_systems(rack_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/racks/{rack_id}/systems", response_model=SystemRead, status_code=201)
-async def create_system(rack_id: uuid.UUID, payload: SystemCreate, db: AsyncSession = Depends(get_db)):
+async def create_system(rack_id: uuid.UUID, payload: SystemCreate, db: AsyncSession = Depends(get_db, scope="function")):
     await _assert_no_overlap(db, rack_id, payload.u_position, payload.u_height)
     system = System(rack_id=rack_id, **payload.model_dump())
     db.add(system)
@@ -63,14 +64,14 @@ async def create_system(rack_id: uuid.UUID, payload: SystemCreate, db: AsyncSess
 
 
 @router.get("/systems/{system_id}", response_model=SystemRead)
-async def get_system(system: System = Depends(get_system_or_404), db: AsyncSession = Depends(get_db)):
+async def get_system(system: System = Depends(get_system_or_404), db: AsyncSession = Depends(get_db, scope="function")):
     await resolve_power_state(db, system)
     return system
 
 
 @router.patch("/systems/{system_id}", response_model=SystemRead)
 async def update_system(
-    payload: SystemUpdate, system: System = Depends(get_system_or_404), db: AsyncSession = Depends(get_db)
+    payload: SystemUpdate, system: System = Depends(get_system_or_404), db: AsyncSession = Depends(get_db, scope="function")
 ):
     updates = payload.model_dump(exclude_unset=True)
     new_position = updates.get("u_position", system.u_position)
@@ -85,20 +86,20 @@ async def update_system(
 
 
 @router.delete("/systems/{system_id}", status_code=204)
-async def delete_system(system: System = Depends(get_system_or_404), db: AsyncSession = Depends(get_db)):
+async def delete_system(system: System = Depends(get_system_or_404), db: AsyncSession = Depends(get_db, scope="function")):
     await db.delete(system)
     await db.commit()
 
 
 @router.get("/systems/{system_id}/power-connections", response_model=list[PowerConnectionRead])
-async def list_power_connections(system: System = Depends(get_system_or_404), db: AsyncSession = Depends(get_db)):
+async def list_power_connections(system: System = Depends(get_system_or_404), db: AsyncSession = Depends(get_db, scope="function")):
     result = await db.execute(select(PowerConnection).where(PowerConnection.system_id == system.id).order_by(PowerConnection.psu_label))
     return result.scalars().all()
 
 
 @router.post("/systems/{system_id}/power-connections", response_model=PowerConnectionRead, status_code=201)
 async def create_power_connection(
-    payload: PowerConnectionCreate, system: System = Depends(get_system_or_404), db: AsyncSession = Depends(get_db)
+    payload: PowerConnectionCreate, system: System = Depends(get_system_or_404), db: AsyncSession = Depends(get_db, scope="function")
 ):
     # Serialize assignments for one system, including duplicate PSU-label checks.
     await db.execute(select(System).where(System.id == system.id).with_for_update())
@@ -123,7 +124,7 @@ async def create_power_connection(
 
 
 @router.delete("/power-connections/{connection_id}", status_code=204)
-async def delete_power_connection(connection_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def delete_power_connection(connection_id: uuid.UUID, db: AsyncSession = Depends(get_db, scope="function")):
     connection = await db.get(PowerConnection, connection_id)
     if connection is None:
         raise HTTPException(status_code=404, detail="Power connection not found")

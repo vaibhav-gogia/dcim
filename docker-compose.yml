@@ -19,6 +19,9 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: postgresql+asyncpg://dcim:dcim@postgres:5432/dcim
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      SESSION_HOURS: ${SESSION_HOURS:-8}
+      CORS_ORIGINS: '${CORS_ORIGINS:-["http://localhost:5173","http://127.0.0.1:5173"]}'
     ports:
       - "8000:8000"
     volumes:

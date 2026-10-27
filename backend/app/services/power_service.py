@@ -10,6 +10,7 @@ from app.drivers.bmc.base import BMCTarget, PowerState
 from app.drivers.pdu.base import OutletState, PDUOutletTarget
 from app.drivers.registry import get_bmc_driver, get_pdu_driver
 from app.models.system import System
+from app.audit import settle_system_events
 
 
 def bmc_target_from_system(system: System) -> BMCTarget:
@@ -52,10 +53,12 @@ async def resolve_power_state(db: AsyncSession, system: System) -> PowerState:
     """
     if await supply_is_lost(db, system):
         await _persist_power_state(db, system, PowerState.OFF)
+        await settle_system_events(db, system.id, "off", supply_lost=True)
         return PowerState.OFF
     driver = get_bmc_driver(system.bmc_driver_type)
     resolved = await driver.get_power_state(bmc_target_from_system(system))
     await _persist_power_state(db, system, resolved)
+    await settle_system_events(db, system.id, resolved.value)
     return resolved
 
 
@@ -105,6 +108,8 @@ async def set_outlet_state(db: AsyncSession, outlet, state: OutletState) -> Outl
         system.power_state = PowerState.OFF.value
         system.power_state_updated_at = datetime.now(timezone.utc)
     await db.commit()
+    if system is not None and system.power_state == "off":
+        await settle_system_events(db, system.id, "off", supply_lost=True)
     return new_state
 
 

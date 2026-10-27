@@ -1,3 +1,4 @@
+from app.protected_route import ProtectedRoute
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -17,11 +18,11 @@ from app.schemas.pdu import PDUOutletRead, PDUWithOutletsRead
 from app.schemas.rack import RackCreate, RackRead, HallLayoutUpdate
 from app.schemas.system import RackElevationRead, SystemElevationRead
 
-router = APIRouter(tags=["racks"])
+router = APIRouter(route_class=ProtectedRoute, tags=["racks"])
 
 
 @router.get("/data-halls/{data_hall_id}/racks", response_model=list[RackRead])
-async def list_racks(data_hall_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def list_racks(data_hall_id: uuid.UUID, db: AsyncSession = Depends(get_db, scope="function")):
     if await db.get(DataHall, data_hall_id) is None:
         raise HTTPException(status_code=404, detail="Data hall not found")
     result = await db.execute(select(Rack).where(Rack.data_hall_id == data_hall_id))
@@ -29,7 +30,7 @@ async def list_racks(data_hall_id: uuid.UUID, db: AsyncSession = Depends(get_db)
 
 
 @router.post("/data-halls/{data_hall_id}/racks", response_model=RackRead, status_code=201)
-async def create_rack(data_hall_id: uuid.UUID, payload: RackCreate, db: AsyncSession = Depends(get_db)):
+async def create_rack(data_hall_id: uuid.UUID, payload: RackCreate, db: AsyncSession = Depends(get_db, scope="function")):
     if await db.get(DataHall, data_hall_id) is None:
         raise HTTPException(status_code=404, detail="Data hall not found")
     rack = Rack(data_hall_id=data_hall_id, **payload.model_dump())
@@ -45,7 +46,7 @@ async def get_rack(rack: Rack = Depends(get_rack_or_404)):
 
 
 @router.patch("/racks/{rack_id}", response_model=RackRead)
-async def update_rack(payload: RackCreate, rack: Rack = Depends(get_rack_or_404), db: AsyncSession = Depends(get_db)):
+async def update_rack(payload: RackCreate, rack: Rack = Depends(get_rack_or_404), db: AsyncSession = Depends(get_db, scope="function")):
     result = await db.execute(select(System).where(System.rack_id == rack.id))
     if any(s.u_position + s.u_height - 1 > (payload.u_height if "u_height" in payload.model_fields_set else rack.u_height) for s in result.scalars().all()):
         raise HTTPException(status_code=409, detail="Rack capacity cannot be smaller than its installed systems")
@@ -57,13 +58,13 @@ async def update_rack(payload: RackCreate, rack: Rack = Depends(get_rack_or_404)
 
 
 @router.delete("/racks/{rack_id}", status_code=204)
-async def delete_rack(rack: Rack = Depends(get_rack_or_404), db: AsyncSession = Depends(get_db)):
+async def delete_rack(rack: Rack = Depends(get_rack_or_404), db: AsyncSession = Depends(get_db, scope="function")):
     await db.delete(rack)
     await commit_inventory(db)
 
 
 @router.get("/racks/{rack_id}/elevation", response_model=RackElevationRead)
-async def get_rack_elevation(rack_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def get_rack_elevation(rack_id: uuid.UUID, db: AsyncSession = Depends(get_db, scope="function")):
     stmt = select(Rack).where(Rack.id == rack_id).options(selectinload(Rack.systems), selectinload(Rack.data_hall).selectinload(DataHall.datacenter))
     result = await db.execute(stmt)
     rack = result.scalar_one_or_none()
@@ -76,7 +77,7 @@ async def get_rack_elevation(rack_id: uuid.UUID, db: AsyncSession = Depends(get_
 
 
 @router.get("/racks/{rack_id}/pdus", response_model=list[PDUWithOutletsRead])
-async def get_rack_pdus(rack_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def get_rack_pdus(rack_id: uuid.UUID, db: AsyncSession = Depends(get_db, scope="function")):
     stmt = (
         select(PDU)
         .where(PDU.rack_id == rack_id)
@@ -117,7 +118,7 @@ async def get_rack_pdus(rack_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
 
 
 @router.patch("/data-halls/{data_hall_id}/layout", response_model=list[RackRead])
-async def update_hall_layout(data_hall_id: uuid.UUID, payload: HallLayoutUpdate, db: AsyncSession = Depends(get_db)):
+async def update_hall_layout(data_hall_id: uuid.UUID, payload: HallLayoutUpdate, db: AsyncSession = Depends(get_db, scope="function")):
     hall = await db.scalar(select(DataHall).where(DataHall.id == data_hall_id).with_for_update())
     if hall is None:
         raise HTTPException(status_code=404, detail="Data hall not found")
@@ -141,7 +142,7 @@ async def update_hall_layout(data_hall_id: uuid.UUID, payload: HallLayoutUpdate,
 
 
 @router.get("/racks/{rack_id}/deletion-summary")
-async def rack_deletion_summary(rack: Rack = Depends(get_rack_or_404), db: AsyncSession = Depends(get_db)):
+async def rack_deletion_summary(rack: Rack = Depends(get_rack_or_404), db: AsyncSession = Depends(get_db, scope="function")):
     system_ids = select(System.id).where(System.rack_id == rack.id)
     pdu_ids = select(PDU.id).where(PDU.rack_id == rack.id)
     outlet_ids = select(PDUOutlet.id).where(PDUOutlet.pdu_id.in_(pdu_ids))

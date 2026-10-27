@@ -5,6 +5,25 @@ repository (August 3–September 28, 2026). This is a curated context handoff,
 not a native Codex chat import. Prior assistant reports below are historical
 and need fresh verification before relying on runtime or test status.
 
+## Current checkpoint — October 27, 2026
+
+Login, API-enforced viewer/operator/admin roles, account management, persistent
+action history, and disruptive-power confirmations have been implemented after
+user approval. Migration `20261027_accounts_audit` was applied locally. There are
+no default credentials. First-admin creation uses the interactive command in
+`docs/ACCOUNTS_AND_HISTORY.md`; do not assume the user has completed it.
+
+Last implementation verification: 41 tests passed, frontend build passed, and
+Alembic schema comparison matched. Browser inspection confirmed the sign-in/setup
+screen. The signed-in multi-role workflow remains unverified. This documentation
+update did not rerun runtime tests. Next step is that walkthrough, then fixing
+any defects before starting the proposed hardware pilot. User asked to pause
+feature work and finish documentation; do not infer approval for another feature.
+
+Current references: `docs/PRODUCT_PLAN.md` for scope,
+`docs/ACCOUNTS_AND_HISTORY.md` for setup/permissions/history, and `README.md` for
+startup and development. The timeline below includes superseded historical states.
+
 ## Product direction
 
 The founder is a former AMD employee who previously built a DCIM and wants to
@@ -69,7 +88,8 @@ The working tree was clean before adding these handoff documents.
 ## Deferred work
 
 Real hardware drivers, network ping monitoring, resource/usage collection,
-reservations, authentication/multi-user support, and real OS provisioning.
+reservations, enterprise identity/SSO/MFA, and real OS provisioning. Local
+authentication and roles were subsequently implemented; see the current checkpoint.
 Inventory creation/editing forms were added on October 8 (see below). Inventory deletion still uses the API. PDU setup and power-connection editing
 were subsequently added to the UI (see rack power setup milestone below).
 
@@ -207,3 +227,34 @@ Successful deletion returns to the hall and refreshes inventory. Moving racks
 between halls remains deferred. No schema migration required. Browser visual
 verification remains outstanding; frontend build and database regression tests
 cover compilation, layout validation/atomicity, and inventory deletion cascades.
+
+## October 27, 2026 — accountable operations and completed documentation
+
+Implemented local accounts and opaque, revocable cookie sessions. Passwords use
+salted scrypt; raw session/CSRF tokens are not stored in the DB. Sessions expire
+after eight hours by default. Account changes revoke sessions; five failed logins
+trigger a five-minute account lock. No default users were created by migration.
+Bootstrap is local and refuses when accounts already exist. Admin UI supports
+create/role/active/password changes and protects the last active administrator.
+
+All inventory APIs now require authentication. Viewer reads; operator additionally
+controls system/outlet power; admin manages inventory, wiring, layouts, and users.
+Frontend controls follow roles. Power off/cycle requests require confirmation.
+Action history is accessible globally and by rack/system. Audit intent is recorded
+before a mutation and completion afterward in a separate transaction. Pending
+simulated power transitions can settle on reads; unknown outcomes are not reported
+as success. Records survive target deletion and omit passwords/raw inventory field
+values. This is not a tamper-proof audit system. Hall layout events are associated
+with the hall and appear globally, not in each rack's filtered history.
+
+Migration adds users/login_sessions/audit_events without replacing inventory.
+FastAPI minimum is now 0.121 for function-scoped DB dependencies. Integration
+fixtures now use unique temporary schemas with independent sessions instead of
+shared rollback transactions, so audit transactions match production behavior.
+All 41 tests passed in the last full run. Settings for secure cookies, session
+hours, and allowed origins are wired through Compose and `.env.example`.
+
+Completed docs: account guide, README startup/test corrections, current permission
+matrix, history semantics, configuration, limitations, and remaining browser
+acceptance checklist. Real account creation status is unknown; the user was given
+the interactive bootstrap command and must enter their password privately.

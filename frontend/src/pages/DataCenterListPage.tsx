@@ -1,3 +1,4 @@
+import { AdminOnly } from "../AuthContext";
 import { useState } from "react";
 import InventoryEditor, { dataCenterFields, InventoryButton } from "../components/InventoryEditor";
 import { useNavigate } from "react-router-dom";
@@ -13,7 +14,7 @@ export default function DataCenterListPage() {
   const { data: datacenters, isLoading, error } = useDataCenters();
 
   return (
-    <PageShell crumbs={[{ label: "DCIM" }]} title="Data Centers" actions={<InventoryButton onClick={() => { setEditing(null); setAdding(true); }}>Add data center</InventoryButton>}>
+    <PageShell crumbs={[{ label: "DCIM" }]} title="Data Centers" actions={<AdminOnly><InventoryButton onClick={() => { setEditing(null); setAdding(true); }}>Add data center</InventoryButton></AdminOnly>}>
       {(adding || editing) && <InventoryEditor key={editing ?? "new"} title={editing ? "Edit data center" : "Add data center"} path={editing ? `/datacenters/${editing}` : "/datacenters"} editing={!!editing} fields={dataCenterFields} onClose={() => { setAdding(false); setEditing(null); }} />}
       {error ? <p role="alert">{error.message}</p> : isLoading ? (
         <div style={{ color: colors.textMuted }}>Loading...</div>
@@ -34,7 +35,7 @@ export default function DataCenterListPage() {
               <InventoryButton onClick={() => navigate(`/dc/${dc.id}`)} style={{ width: "100%", textAlign: "left", marginBottom: space.sm }}>Open data center</InventoryButton>
               <div style={{ fontSize: fontSize.lg, fontWeight: 600, color: colors.textPrimary, marginBottom: space.xs }}>{dc.name}</div>
               {dc.location && <div style={{ fontSize: fontSize.sm, color: colors.textMuted }}>{dc.location}</div>}
-              <InventoryButton style={{ marginTop: space.md }} onClick={() => { setAdding(false); setEditing(dc.id); }}>Edit</InventoryButton>
+              <AdminOnly><InventoryButton style={{ marginTop: space.md }} onClick={() => { setAdding(false); setEditing(dc.id); }}>Edit</InventoryButton></AdminOnly>
             </div>
           ))}
         </div>

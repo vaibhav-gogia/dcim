@@ -1,3 +1,4 @@
+import { AdminOnly, usePermissions } from "../AuthContext";
 import { useState } from "react";
 import InventoryEditor, { pduFields, pduEditFields, InventoryButton } from "./InventoryEditor";
 import { useOutletAction, useRackPdus } from "../api/hooks";
@@ -12,7 +13,7 @@ export default function PduPanel({ rackId }: { rackId: string }) {
     <div style={{ flex: "1 1 340px", minWidth: "min(340px, 100%)", maxWidth: 700 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: space.md }}>
         <h3 style={{ margin: 0, fontSize: fontSize.lg }}>PDUs</h3>
-        <InventoryButton onClick={() => setAdding(true)}>Add PDU</InventoryButton>
+        <AdminOnly><InventoryButton onClick={() => setAdding(true)}>Add PDU</InventoryButton></AdminOnly>
       </div>
       {adding && <InventoryEditor title="Add PDU" path={`/racks/${rackId}/pdus`} fields={pduFields} onClose={() => setAdding(false)} />}
       {isPending && <p role="status">Loading PDUs…</p>}
@@ -41,6 +42,7 @@ function Legend() {
 }
 
 function PduCard({ pdu, rackId }: { pdu: PDUWithOutlets; rackId: string }) {
+  const { canOperate } = usePermissions();
   const outletAction = useOutletAction(pdu.id, rackId);
   const [editing, setEditing] = useState(false);
 
@@ -55,14 +57,14 @@ function PduCard({ pdu, rackId }: { pdu: PDUWithOutlets; rackId: string }) {
     >
       <div style={{ fontWeight: 600, fontSize: fontSize.md, marginBottom: space.sm, color: colors.textPrimary }}>{pdu.name}</div>
       <div style={{ marginBottom: space.sm, fontSize: fontSize.xs, color: colors.textMuted }}>{pdu.outlet_count} outlets · simulated</div>
-      <InventoryButton style={{ marginBottom: space.md }} onClick={() => setEditing(true)}>Edit PDU</InventoryButton>
+      <AdminOnly><InventoryButton style={{ marginBottom: space.md }} onClick={() => setEditing(true)}>Edit PDU</InventoryButton></AdminOnly>
       {editing && <InventoryEditor title="Edit PDU" path={`/pdus/${pdu.id}`} editing fields={pduEditFields} onClose={() => setEditing(false)} />}
       {outletAction.error && <p role="alert" style={{ color: colors.statusCritical }}>{outletAction.error.message}</p>}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
         {pdu.outlets.map((outlet) => (
           <button
             type="button"
-            disabled={outletAction.isPending}
+            disabled={outletAction.isPending || !canOperate}
             aria-label={`Outlet ${outlet.outlet_number}, ${outlet.state}, ${outlet.connected_system_name ?? "unassigned"}. Turn ${outlet.state === "on" ? "off" : "on"}`}
             key={outlet.id}
             title={outlet.connected_system_name ?? "unconnected"}
@@ -77,7 +79,10 @@ function PduCard({ pdu, rackId }: { pdu: PDUWithOutlets; rackId: string }) {
               cursor: "pointer",
               userSelect: "none",
             }}
-            onClick={() => outletAction.mutate({ outletId: outlet.id, action: outlet.state === "on" ? "off" : "on" })}
+            onClick={() => {
+              if (outlet.state === "on" && !window.confirm(`Turn off ${pdu.name}, outlet ${outlet.outlet_number}? ${outlet.connected_system_name ? `This supplies ${outlet.connected_system_name}. It may lose power if no other PSU has input.` : "This cuts power at the outlet."}`)) return;
+              outletAction.mutate({ outletId: outlet.id, action: outlet.state === "on" ? "off" : "on" });
+            }}
           >
             {outlet.outlet_number}
           </button>

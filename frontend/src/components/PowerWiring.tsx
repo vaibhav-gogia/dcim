@@ -1,9 +1,11 @@
+import { AdminOnly, usePermissions } from "../AuthContext";
 import { useState } from "react";
 import { usePowerConnections, useRackPdus, useUnwirePower, useWirePower } from "../api/hooks";
 import { colors, fontSize, radius, space } from "../theme";
 import { InventoryButton } from "./InventoryEditor";
 
 export default function PowerWiring({ systemId, rackId }: { systemId: string; rackId: string }) {
+  const { canManage } = usePermissions();
   const connections = usePowerConnections(systemId);
   const pdus = useRackPdus(rackId);
   const wire = useWirePower(systemId);
@@ -24,9 +26,9 @@ export default function PowerWiring({ systemId, rackId }: { systemId: string; ra
       {connections.data.map(connection => <div key={connection.id} style={{ marginBottom: space.md }}>
         <strong>{connection.psu_label ?? "Unlabeled PSU"}</strong>
         <div style={{ fontSize: fontSize.sm, marginBottom: space.xs }}>{outletNames.get(connection.pdu_outlet_id) ?? "Loading outlet…"}</div>
-        <InventoryButton disabled={pending} onClick={() => { wire.reset(); unwire.mutate(connection.id); }}>Disconnect</InventoryButton>
+        <AdminOnly><InventoryButton disabled={pending} onClick={() => { wire.reset(); unwire.mutate(connection.id); }}>Disconnect</InventoryButton></AdminOnly>
       </div>)}
-      {!pdus.data.length ? <p>Add a PDU to this rack to connect its systems.</p> : !available.length ? <p>All outlets are assigned. Add another PDU or disconnect an outlet.</p> :
+      {canManage && (!pdus.data.length ? <p>Add a PDU to this rack to connect its systems.</p> : !available.length ? <p>All outlets are assigned. Add another PDU or disconnect an outlet.</p> :
         <form onSubmit={event => { event.preventDefault(); unwire.reset(); wire.mutate({ pdu_outlet_id: outletId, psu_label: label.trim() }, { onSuccess: () => { setOutletId(""); setLabel(""); } }); }}>
           <fieldset disabled={pending} style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: space.sm }}>
             <label>PSU label<input style={inputStyle} required maxLength={32} pattern=".*\S.*" value={label} placeholder="PSU1 or PSU2" onChange={e => setLabel(e.target.value)} /></label>
@@ -36,7 +38,7 @@ export default function PowerWiring({ systemId, rackId }: { systemId: string; ra
             </select></label>
             <InventoryButton type="submit">{wire.isPending ? "Connecting…" : "Connect PSU"}</InventoryButton>
           </fieldset>
-        </form>}
+        </form>)}
     </>}
     {(wire.error || unwire.error) && <p role="alert" style={{ color: colors.statusCritical }}>{(wire.error ?? unwire.error)?.message}</p>}
     {wire.isSuccess && <p role="status">PSU connected.</p>}

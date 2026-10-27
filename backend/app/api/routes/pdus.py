@@ -1,3 +1,4 @@
+from app.protected_route import ProtectedRoute
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,11 +10,11 @@ from app.models.rack import Rack
 from app.models.pdu_outlet import PDUOutlet
 from app.schemas.pdu import PDUCreate, PDURead, PDUUpdate
 
-router = APIRouter(tags=["pdus"])
+router = APIRouter(route_class=ProtectedRoute, tags=["pdus"])
 
 
 @router.post("/racks/{rack_id}/pdus", response_model=PDURead, status_code=201)
-async def create_pdu(rack_id: uuid.UUID, payload: PDUCreate, db: AsyncSession = Depends(get_db)):
+async def create_pdu(rack_id: uuid.UUID, payload: PDUCreate, db: AsyncSession = Depends(get_db, scope="function")):
     if await db.get(Rack, rack_id) is None:
         raise HTTPException(status_code=404, detail="Rack not found")
     pdu = PDU(rack_id=rack_id, **payload.model_dump())
@@ -32,7 +33,7 @@ async def get_pdu(pdu: PDU = Depends(get_pdu_or_404)):
 
 
 @router.patch("/pdus/{pdu_id}", response_model=PDURead)
-async def update_pdu(payload: PDUUpdate, pdu: PDU = Depends(get_pdu_or_404), db: AsyncSession = Depends(get_db)):
+async def update_pdu(payload: PDUUpdate, pdu: PDU = Depends(get_pdu_or_404), db: AsyncSession = Depends(get_db, scope="function")):
     updates = payload.model_dump(exclude_unset=True, exclude={"outlet_count"})
     for field, value in updates.items():
         setattr(pdu, field, value)
@@ -42,6 +43,6 @@ async def update_pdu(payload: PDUUpdate, pdu: PDU = Depends(get_pdu_or_404), db:
 
 
 @router.delete("/pdus/{pdu_id}", status_code=204)
-async def delete_pdu(pdu: PDU = Depends(get_pdu_or_404), db: AsyncSession = Depends(get_db)):
+async def delete_pdu(pdu: PDU = Depends(get_pdu_or_404), db: AsyncSession = Depends(get_db, scope="function")):
     await db.delete(pdu)
     await commit_inventory(db)

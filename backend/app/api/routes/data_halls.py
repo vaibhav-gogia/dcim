@@ -1,3 +1,4 @@
+from app.protected_route import ProtectedRoute
 import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -8,10 +9,10 @@ from app.models.data_hall import DataHall
 from app.models.datacenter import DataCenter
 from app.schemas.data_hall import DataHallCreate, DataHallRead, DataHallFloorRead
 
-router = APIRouter(tags=["data halls"])
+router = APIRouter(route_class=ProtectedRoute, tags=["data halls"])
 
 
-async def get_hall(data_hall_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def get_hall(data_hall_id: uuid.UUID, db: AsyncSession = Depends(get_db, scope="function")):
     hall = await db.get(DataHall, data_hall_id)
     if hall is None:
         raise HTTPException(status_code=404, detail="Data hall not found")
@@ -19,7 +20,7 @@ async def get_hall(data_hall_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/datacenters/{datacenter_id}/data-halls", response_model=list[DataHallRead])
-async def list_halls(datacenter_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def list_halls(datacenter_id: uuid.UUID, db: AsyncSession = Depends(get_db, scope="function")):
     if await db.get(DataCenter, datacenter_id) is None:
         raise HTTPException(status_code=404, detail="Data center not found")
     result = await db.execute(select(DataHall).where(DataHall.datacenter_id == datacenter_id).order_by(DataHall.name))
@@ -27,7 +28,7 @@ async def list_halls(datacenter_id: uuid.UUID, db: AsyncSession = Depends(get_db
 
 
 @router.post("/datacenters/{datacenter_id}/data-halls", response_model=DataHallRead, status_code=201)
-async def create_hall(datacenter_id: uuid.UUID, payload: DataHallCreate, db: AsyncSession = Depends(get_db)):
+async def create_hall(datacenter_id: uuid.UUID, payload: DataHallCreate, db: AsyncSession = Depends(get_db, scope="function")):
     if await db.get(DataCenter, datacenter_id) is None:
         raise HTTPException(status_code=404, detail="Data center not found")
     hall = DataHall(datacenter_id=datacenter_id, **payload.model_dump())
@@ -43,7 +44,7 @@ async def read_hall(hall: DataHall = Depends(get_hall)):
 
 
 @router.patch("/data-halls/{data_hall_id}", response_model=DataHallRead)
-async def update_hall(payload: DataHallCreate, hall: DataHall = Depends(get_hall), db: AsyncSession = Depends(get_db)):
+async def update_hall(payload: DataHallCreate, hall: DataHall = Depends(get_hall), db: AsyncSession = Depends(get_db, scope="function")):
     hall.name = payload.name
     await commit_inventory(db)
     await db.refresh(hall)
@@ -51,13 +52,13 @@ async def update_hall(payload: DataHallCreate, hall: DataHall = Depends(get_hall
 
 
 @router.delete("/data-halls/{data_hall_id}", status_code=204)
-async def delete_hall(hall: DataHall = Depends(get_hall), db: AsyncSession = Depends(get_db)):
+async def delete_hall(hall: DataHall = Depends(get_hall), db: AsyncSession = Depends(get_db, scope="function")):
     await db.delete(hall)
     await commit_inventory(db)
 
 
 @router.get("/data-halls/{data_hall_id}/floor", response_model=DataHallFloorRead)
-async def hall_floor(data_hall_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def hall_floor(data_hall_id: uuid.UUID, db: AsyncSession = Depends(get_db, scope="function")):
     result = await db.execute(select(DataHall).where(DataHall.id == data_hall_id).options(selectinload(DataHall.racks), selectinload(DataHall.datacenter)))
     hall = result.scalar_one_or_none()
     if hall is None:
