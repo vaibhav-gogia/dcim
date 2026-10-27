@@ -194,3 +194,16 @@ without enabling other outlets. Unwired systems retain standalone demo behavior.
 BMC cycle errors use the same guidance. This supersedes the earlier notes about
 Power On enabling outlets. Tests now explicitly power outlets before booting and
 assert rejected/degraded Power On requests do not modify outlet states.
+
+## October 27, 2026 — hall layout editing and rack deletion
+
+User approved implementing within-hall dragging and a rack deletion UI. Data hall
+pages now offer Edit layout with draft positions, pointer dragging, keyboard arrow
+movement, 0.1-cell snapping, overlap warnings, and Save/Cancel. An atomic backend
+layout endpoint validates membership, original coordinates (stale edit detection),
+and tile overlap before saving all rack positions. Rack deletion displays counts
+of systems/PDUs/outlets/connections and requires typing the exact rack name.
+Successful deletion returns to the hall and refreshes inventory. Moving racks
+between halls remains deferred. No schema migration required. Browser visual
+verification remains outstanding; frontend build and database regression tests
+cover compilation, layout validation/atomicity, and inventory deletion cascades.

@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -14,7 +14,7 @@ from app.models.data_hall import DataHall
 from app.models.system import System
 from app.services.power_service import resolve_power_state
 from app.schemas.pdu import PDUOutletRead, PDUWithOutletsRead
-from app.schemas.rack import RackCreate, RackRead
+from app.schemas.rack import RackCreate, RackRead, HallLayoutUpdate
 from app.schemas.system import RackElevationRead, SystemElevationRead
 
 router = APIRouter(tags=["racks"])
@@ -114,3 +114,38 @@ async def get_rack_pdus(rack_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
             )
         )
     return response
+
+
+@router.patch("/data-halls/{data_hall_id}/layout", response_model=list[RackRead])
+async def update_hall_layout(data_hall_id: uuid.UUID, payload: HallLayoutUpdate, db: AsyncSession = Depends(get_db)):
+    hall = await db.scalar(select(DataHall).where(DataHall.id == data_hall_id).with_for_update())
+    if hall is None:
+        raise HTTPException(status_code=404, detail="Data hall not found")
+    racks = (await db.execute(select(Rack).where(Rack.data_hall_id == data_hall_id).with_for_update())).scalars().all()
+    positions = {p.id: p for p in payload.racks}
+    if len(positions) != len(payload.racks) or set(positions) != {r.id for r in racks}:
+        raise HTTPException(status_code=409, detail="The hall inventory changed. Cancel and reload the layout.")
+    for rack in racks:
+        p = positions[rack.id]
+        if rack.pos_x != p.previous_x or rack.pos_y != p.previous_y:
+            raise HTTPException(status_code=409, detail="A rack moved since editing began. Cancel and reload the layout.")
+    # Floor tiles occupy 150x110 within each 200-unit cell.
+    for i, a in enumerate(payload.racks):
+        for b in payload.racks[i + 1:]:
+            if abs(a.pos_x - b.pos_x) < 0.75 and abs(a.pos_y - b.pos_y) < 0.55:
+                raise HTTPException(status_code=409, detail="Rack positions overlap. Move them apart before saving.")
+    for rack in racks:
+        rack.pos_x, rack.pos_y = positions[rack.id].pos_x, positions[rack.id].pos_y
+    await commit_inventory(db)
+    return racks
+
+
+@router.get("/racks/{rack_id}/deletion-summary")
+async def rack_deletion_summary(rack: Rack = Depends(get_rack_or_404), db: AsyncSession = Depends(get_db)):
+    system_ids = select(System.id).where(System.rack_id == rack.id)
+    pdu_ids = select(PDU.id).where(PDU.rack_id == rack.id)
+    outlet_ids = select(PDUOutlet.id).where(PDUOutlet.pdu_id.in_(pdu_ids))
+    return {"systems": await db.scalar(select(func.count()).select_from(System).where(System.rack_id == rack.id)),
+        "pdus": await db.scalar(select(func.count()).select_from(PDU).where(PDU.rack_id == rack.id)),
+        "outlets": await db.scalar(select(func.count()).select_from(PDUOutlet).where(PDUOutlet.pdu_id.in_(pdu_ids))),
+        "connections": await db.scalar(select(func.count()).select_from(PowerConnection).where(or_(PowerConnection.system_id.in_(system_ids), PowerConnection.pdu_outlet_id.in_(outlet_ids))))}

@@ -37,3 +37,15 @@ class DataCenterFloorRead(BaseModel):
     id: uuid.UUID
     name: str
     racks: list[FloorRackRead]
+
+
+class RackPosition(BaseModel):
+    id: uuid.UUID
+    pos_x: float = Field(ge=0, allow_inf_nan=False)
+    pos_y: float = Field(ge=0, allow_inf_nan=False)
+    previous_x: float = Field(ge=0, allow_inf_nan=False)
+    previous_y: float = Field(ge=0, allow_inf_nan=False)
+
+
+class HallLayoutUpdate(BaseModel):
+    racks: list[RackPosition] = Field(max_length=1000)

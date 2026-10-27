@@ -83,9 +83,10 @@ because computer-use permissions were unavailable. Recheck before release.
 - Full network/IP address management and replacement of existing customer tools.
 - Billing, a multi-tenant SaaS control plane, and enterprise integration breadth.
 
-Basic UI inventory deletion, moving racks between halls, and bulk operations are
-backlog candidates. API deletion already exists; its cascading behavior needs
-clear safeguards before being exposed as a routine UI action. Do not expand Day 1
+Rack deletion with typed confirmation and a contents summary, plus within-hall
+layout editing with Save/Cancel, were subsequently approved and implemented.
+Deletion of other inventory types, moving racks between halls, and bulk operations
+remain backlog candidates. Do not expand Day 1
 for these unless a pilot workflow requires them.
 
 ## Logical next milestone: accountable operations

@@ -242,3 +242,48 @@ async def test_pdu_supply_loss_redundancy_and_restore(client, feed_count, initia
         await client.post(feeds[1] + '/off')
         await client.post(feeds[0] + '/cycle')
         assert (await client.get(f'/systems/{sid}/power')).json()['power_state'] == 'off'
+
+
+async def test_layout_save_atomicity_overlap_and_stale_edits(client):
+    dc = await create(client, '/datacenters', {'name': 'layout-' + uuid.uuid4().hex})
+    hall = await create(client, f"/datacenters/{dc['id']}/data-halls", {'name': 'Hall'})
+    other = await create(client, f"/datacenters/{dc['id']}/data-halls", {'name': 'Other'})
+    a = await create(client, f"/data-halls/{hall['id']}/racks", {'name': 'A', 'pos_x': 0, 'pos_y': 0})
+    b = await create(client, f"/data-halls/{hall['id']}/racks", {'name': 'B', 'pos_x': 1, 'pos_y': 0})
+    foreign = await create(client, f"/data-halls/{other['id']}/racks", {'name': 'Foreign'})
+    path = f"/data-halls/{hall['id']}/layout"
+    positions = [{'id': a['id'], 'pos_x': 1, 'pos_y': 0, 'previous_x': 0, 'previous_y': 0},
+                 {'id': b['id'], 'pos_x': 0, 'pos_y': 0, 'previous_x': 1, 'previous_y': 0}]
+    # Swapping positions is one atomic save, with no transient collision.
+    response = await client.patch(path, json={'racks': positions})
+    assert response.status_code == 200, response.text
+    assert (await client.get(f"/racks/{a['id']}")).json()['pos_x'] == 1
+    assert (await client.patch(path, json={'racks': positions})).status_code == 409
+    fresh = [{**positions[0], 'previous_x': 1, 'pos_x': 0}, {**positions[1], 'previous_x': 0, 'pos_x': 0.2}]
+    assert (await client.patch(path, json={'racks': fresh})).status_code == 409
+    assert (await client.get(f"/racks/{a['id']}")).json()['pos_x'] == 1  # No partial save.
+    assert (await client.patch(path, json={'racks': [fresh[0]]})).status_code == 409
+    assert (await client.patch(path, json={'racks': [fresh[0], fresh[0]]})).status_code == 409
+    assert (await client.patch(path, json={'racks': [fresh[0], {**fresh[1], 'id': foreign['id']}]})).status_code == 409
+    assert (await client.patch(path, json={'racks': [{**fresh[0], 'pos_x': -1}, fresh[1]]})).status_code == 422
+    assert (await client.patch(f'/data-halls/{uuid.uuid4()}/layout', json={'racks': []})).status_code == 404
+    assert (await client.get(f"/racks/{foreign['id']}")).json()['pos_x'] == 0
+
+
+async def test_rack_deletion_summary_and_equipment_cascade(client):
+    dc = await create(client, '/datacenters', {'name': 'delete-' + uuid.uuid4().hex})
+    hall = await create(client, f"/datacenters/{dc['id']}/data-halls", {'name': 'Hall'})
+    rack = await create(client, f"/data-halls/{hall['id']}/racks", {'name': 'Delete me'})
+    neighbor = await create(client, f"/data-halls/{hall['id']}/racks", {'name': 'Keep me'})
+    system = await create(client, f"/racks/{rack['id']}/systems", {'name': 'Server', 'u_position': 1})
+    pdu = await create(client, f"/racks/{rack['id']}/pdus", {'name': 'PDU', 'outlet_count': 2})
+    pdus = (await client.get(f"/racks/{rack['id']}/pdus")).json()
+    connection = await create(client, f"/systems/{system['id']}/power-connections", {'psu_label': 'PSU1', 'pdu_outlet_id': pdus[0]['outlets'][0]['id']})
+    summary = await client.get(f"/racks/{rack['id']}/deletion-summary")
+    assert summary.status_code == 200
+    assert summary.json() == {'systems': 1, 'pdus': 1, 'outlets': 2, 'connections': 1}
+    assert (await client.delete(f"/racks/{rack['id']}")).status_code == 204
+    for path in [f"/racks/{rack['id']}", f"/systems/{system['id']}", f"/pdus/{pdu['id']}", f"/racks/{rack['id']}/deletion-summary"]:
+        assert (await client.get(path)).status_code == 404
+    assert (await client.delete(f"/power-connections/{connection['id']}")).status_code == 404
+    assert (await client.get(f"/racks/{neighbor['id']}")).status_code == 200

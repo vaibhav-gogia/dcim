@@ -63,7 +63,16 @@ export default function PageShell({ crumbs, title, actions, children }: { crumbs
             </li>)}
           </ol>}
         </nav>
-        <div style={{ display: "flex", alignItems: "center", gap: space.md }}><Link to="/inventory" style={{ color: colors.textSecondary, fontSize: fontSize.sm, textDecoration: "none" }}>Search inventory</Link><ThemeToggle /></div>
+        <div style={{ display: "flex", alignItems: "center", gap: space.md }}>
+          <Link to="/inventory" style={{ display: "inline-flex", alignItems: "center", gap: space.xs, color: colors.textSecondary, fontSize: fontSize.sm, textDecoration: "none" }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+              <circle cx="10.5" cy="10.5" r="6.5" />
+              <path d="m16 16 4.5 4.5" />
+            </svg>
+            Search inventory
+          </Link>
+          <ThemeToggle />
+        </div>
       </header>
       <main style={{ padding: space.xl }}>
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: space.md, marginBottom: space.lg }}>

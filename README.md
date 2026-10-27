@@ -42,8 +42,8 @@ in the visual or list view to reveal **Edit selected system**. Rack positions us
 floor column/row coordinates; system positions start at U1 at the bottom.
 Systems must fit within rack capacity and cannot overlap existing systems.
 
-Power and health remain simulated. Inventory deletion is currently available
-through the API docs rather than these forms.
+Power and health remain simulated. Racks can be deleted from their page with
+a typed confirmation; other inventory deletion remains available through the API.
 
 ## Data halls
 
@@ -118,3 +118,17 @@ feed is enough to boot; any other outlets remain unchanged.
 Cycling the only powered feed interrupts the system; cycling a redundant feed does
 not. Unwired demo systems retain standalone simulated BMC behavior because their
 power source is unknown. Wiring edits describe inventory and do not toggle relays.
+
+## Editing hall layouts and deleting racks
+
+On a data hall page, select **Edit layout**. Drag racks into place, or focus a
+rack and use arrow keys to move it by 0.1 cell. **Save layout** persists all
+positions together; **Cancel** discards the draft. Rack tiles cannot overlap.
+If another user changes rack membership or positions during editing, saving is
+rejected with instructions to cancel and reload. Layout editing changes positions
+within the current hall; moving racks between halls is not included.
+
+On a rack page, choose **Delete rack**. Review the counts of systems, PDUs,
+outlets, and power connections, then type the rack's exact name and confirm.
+This permanently deletes those inventory records and returns to the hall.
+It does not issue power commands to physical equipment.
