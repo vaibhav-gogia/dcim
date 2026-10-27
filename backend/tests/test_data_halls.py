@@ -107,6 +107,9 @@ async def test_complete_rack_power_setup_and_wiring_guards(client):
     assert (await client.post(wiring_path, json={'psu_label': 'PSU2', 'pdu_outlet_id': foreign_outlet})).status_code == 409
     await create(client, wiring_path, {'psu_label': 'PSU2', 'pdu_outlet_id': outlet_b})
     assert len((await client.get(wiring_path)).json()) == 2
+    for pdu in pdus:
+        outlet_id = pdu['outlets'][0]['id']
+        assert (await client.post(f"/pdus/{pdu['id']}/outlets/{outlet_id}/on")).status_code == 200
     response = await client.post(f"/systems/{system['id']}/power/on")
     assert response.status_code == 200, response.text
     assert response.json()['power_state'] == 'booting'
@@ -173,3 +176,69 @@ async def test_inventory_search_filters_pagination_and_transitions(client):
     options = (await client.get('/inventory/filters')).json()
     assert 'Dell' in options['manufacturers'] and 'storage' in options['system_types']
     assert any(h['id'] == hall_b['id'] and h['datacenter_id'] == dc['id'] for h in options['data_halls'])
+
+
+@pytest.mark.parametrize('feed_count', [1, 2])
+@pytest.mark.parametrize('initial_state', ['on', 'booting'])
+async def test_pdu_supply_loss_redundancy_and_restore(client, feed_count, initial_state):
+    dc = await create(client, '/datacenters', {'name': 'supply-' + uuid.uuid4().hex})
+    hall = await create(client, f"/datacenters/{dc['id']}/data-halls", {'name': 'Hall'})
+    rack = await create(client, f"/data-halls/{hall['id']}/racks", {'name': 'Rack'})
+    system = await create(client, f"/racks/{rack['id']}/systems", {'name': 'Server', 'u_position': 1})
+    sid = system['id']
+    feeds = []
+    for i in range(feed_count):
+        pdu = await create(client, f"/racks/{rack['id']}/pdus", {'name': f'PDU {i}', 'outlet_count': 1})
+        pdus = (await client.get(f"/racks/{rack['id']}/pdus")).json()
+        outlet = next(p for p in pdus if p['id'] == pdu['id'])['outlets'][0]
+        await create(client, f'/systems/{sid}/power-connections', {'psu_label': f'PSU{i+1}', 'pdu_outlet_id': outlet['id']})
+        feeds.append(f"/pdus/{pdu['id']}/outlets/{outlet['id']}")
+    rejected = await client.post(f'/systems/{sid}/power/on')
+    assert rejected.status_code == 409
+    assert 'Turn on a connected PDU outlet first' in rejected.json()['detail']
+    assert (await client.get(f'/systems/{sid}/power')).json()['power_state'] == 'off'
+    for feed in feeds:
+        assert (await client.get(feed)).json()['state'] == 'off'
+        assert (await client.post(feed + '/on')).status_code == 200
+    assert (await client.post(f'/systems/{sid}/power/on')).json()['power_state'] == 'booting'
+    if initial_state == 'on':
+        from sqlalchemy import update
+        from app.models.system import System
+        async for db in app.dependency_overrides[get_db]():
+            await db.execute(update(System).where(System.id == uuid.UUID(sid)).values(power_state='on'))
+            await db.commit()
+    # Losing the final feed interrupts a running system or in-progress boot.
+    for i, feed in enumerate(feeds):
+        assert (await client.post(feed + '/off')).status_code == 200
+        health = (await client.get(f'/systems/{sid}/health')).json()
+        assert health['psus'][f'psu{i+1}'] == 'no_input'
+        if i < feed_count - 1:
+            assert health['power_state'] == initial_state
+            assert health['psus']['psu2'] == 'ok'
+    assert health['power_state'] == 'off'
+    assert all(rpm == 0 for rpm in health['fans_rpm'].values())
+    assert (await client.get(f'/systems/{sid}')).json()['power_state'] == 'off'
+    elevation = (await client.get(f"/racks/{rack['id']}/elevation")).json()
+    assert elevation['systems'][0]['power_state'] == 'off'
+    search = (await client.get('/inventory/systems', params={'datacenter_id': dc['id'], 'power_state': 'off'})).json()
+    assert search['total'] == 1
+    assert (await client.post(f'/systems/{sid}/power/cycle')).status_code == 409
+    # Restoring AC does not silently boot the machine.
+    await client.post(feeds[0] + '/on')
+    health = (await client.get(f'/systems/{sid}/health')).json()
+    assert health['power_state'] == 'off'
+    assert health['psus']['psu1'] == 'ok'
+    assert (await client.post(f'/systems/{sid}/power/on')).json()['power_state'] == 'booting'
+    # Power On must leave the second, unpowered feed unchanged.
+    if feed_count == 2:
+        assert (await client.get(feeds[1])).json()['state'] == 'off'
+        assert (await client.get(f'/systems/{sid}/health')).json()['psus']['psu2'] == 'no_input'
+        await client.post(feeds[1] + '/on')
+    # Cycling one redundant feed is harmless; cycling the sole remaining feed is not.
+    await client.post(feeds[0] + '/cycle')
+    expected = 'booting' if feed_count == 2 else 'off'
+    assert (await client.get(f'/systems/{sid}/power')).json()['power_state'] == expected
+    if feed_count == 2:
+        await client.post(feeds[1] + '/off')
+        await client.post(feeds[0] + '/cycle')
+        assert (await client.get(f'/systems/{sid}/power')).json()['power_state'] == 'off'

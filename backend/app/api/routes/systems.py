@@ -9,6 +9,7 @@ from app.models.pdu_outlet import PDUOutlet
 from app.models.pdu import PDU
 from app.models.power_connection import PowerConnection
 from app.models.system import System
+from app.services.power_service import resolve_power_state
 from app.models.rack import Rack
 from app.schemas.power_connection import PowerConnectionCreate, PowerConnectionRead
 from app.schemas.system import SystemCreate, SystemRead, SystemUpdate
@@ -45,7 +46,10 @@ async def _assert_no_overlap(
 @router.get("/racks/{rack_id}/systems", response_model=list[SystemRead])
 async def list_systems(rack_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(System).where(System.rack_id == rack_id))
-    return result.scalars().all()
+    systems = result.scalars().all()
+    for system in systems:
+        await resolve_power_state(db, system)
+    return systems
 
 
 @router.post("/racks/{rack_id}/systems", response_model=SystemRead, status_code=201)
@@ -59,7 +63,8 @@ async def create_system(rack_id: uuid.UUID, payload: SystemCreate, db: AsyncSess
 
 
 @router.get("/systems/{system_id}", response_model=SystemRead)
-async def get_system(system: System = Depends(get_system_or_404)):
+async def get_system(system: System = Depends(get_system_or_404), db: AsyncSession = Depends(get_db)):
+    await resolve_power_state(db, system)
     return system
 
 

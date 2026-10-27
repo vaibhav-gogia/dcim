@@ -87,6 +87,9 @@ export function useOutletAction(pduId: string, rackId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rack-pdus", rackId] });
       queryClient.invalidateQueries({ queryKey: ["rack-elevation", rackId] });
+      queryClient.invalidateQueries({ queryKey: ["system-health"] });
+      queryClient.invalidateQueries({ queryKey: ["system"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
     },
   });
 }

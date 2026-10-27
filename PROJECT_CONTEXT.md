@@ -169,3 +169,28 @@ specializations as unvalidated options. Recommended next implementation is
 accountable operations: users, API-enforced permissions, action history, and
 power-action safeguards, after a foundation browser walkthrough. These are
 recommendations for review; no new implementation was authorized by this pause.
+
+## October 27, 2026 — PDU supply-loss correction
+
+User reported systems staying online after all connected outlets were switched
+off. Simulated outlet changes now reconcile attached system state: the last feed
+going off immediately persists OFF and cancels pending transitions. A remaining
+powered feed preserves operation. AC restoration leaves the system off until
+Power On; existing Power On behavior still enables connected outlets. BMC cycling
+without a powered feed returns a conflict. Outlet cycling models the interruption
+before restoring AC. Wired PSU health reports actual connected outlet input.
+Read paths and inventory power filters also honor loss of all wired inputs;
+unwired demo systems keep standalone behavior. Frontend outlet actions immediately
+invalidate system health/detail and inventory queries. No schema change.
+Regression tests cover running/booting systems, single/dual feeds, zero fans,
+restoration, outlet cycling, and consistent search/elevation/detail states.
+
+## October 27, 2026 — separate BMC and PDU controls
+
+User requested correcting System Power On automatically enabling PDU outlets.
+Removed that behavior: wired simulated systems with no live feed return HTTP 409
+with instructions to turn on a connected outlet. One live feed permits booting
+without enabling other outlets. Unwired systems retain standalone demo behavior.
+BMC cycle errors use the same guidance. This supersedes the earlier notes about
+Power On enabling outlets. Tests now explicitly power outlets before booting and
+assert rejected/degraded Power On requests do not modify outlet states.

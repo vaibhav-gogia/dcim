@@ -6,6 +6,8 @@ from sqlalchemy import select, func, or_, and_, case
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_db
 from app.models.system import System
+from app.models.power_connection import PowerConnection
+from app.models.pdu_outlet import PDUOutlet
 from app.models.rack import Rack
 from app.models.data_hall import DataHall
 from app.models.datacenter import DataCenter
@@ -18,7 +20,9 @@ router = APIRouter(prefix="/inventory", tags=["inventory"])
 def effective_power_state():
     now = datetime.now(timezone.utc)
     transitions = [("booting", BOOT_SECS, "on"), ("cycling", CYCLE_SECS, "on"), ("shutting_down", SHUTDOWN_SECS, "off")]
-    return case(*[(and_(System.bmc_driver_type == 'simulated', System.power_state == source,
+    wired = select(PowerConnection.id).where(PowerConnection.system_id == System.id).exists()
+    powered = select(PowerConnection.id).join(PDUOutlet, PowerConnection.pdu_outlet_id == PDUOutlet.id).where(PowerConnection.system_id == System.id, PDUOutlet.state == 'on').exists()
+    return case((and_(System.bmc_driver_type == 'simulated', wired, ~powered), 'off'), *[(and_(System.bmc_driver_type == 'simulated', System.power_state == source,
         or_(System.power_state_updated_at.is_(None), System.power_state_updated_at <= now - timedelta(seconds=seconds))), target)
         for source, seconds, target in transitions], else_=System.power_state)
 

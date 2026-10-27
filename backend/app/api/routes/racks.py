@@ -12,6 +12,7 @@ from app.models.power_connection import PowerConnection
 from app.models.rack import Rack
 from app.models.data_hall import DataHall
 from app.models.system import System
+from app.services.power_service import resolve_power_state
 from app.schemas.pdu import PDUOutletRead, PDUWithOutletsRead
 from app.schemas.rack import RackCreate, RackRead
 from app.schemas.system import RackElevationRead, SystemElevationRead
@@ -68,6 +69,8 @@ async def get_rack_elevation(rack_id: uuid.UUID, db: AsyncSession = Depends(get_
     rack = result.scalar_one_or_none()
     if rack is None:
         raise HTTPException(status_code=404, detail="Rack not found")
+    for system in rack.systems:
+        await resolve_power_state(db, system)
     systems = [SystemElevationRead.model_validate(s) for s in rack.systems]
     return RackElevationRead(id=rack.id, name=rack.name, u_height=rack.u_height, systems=systems, data_hall_id=rack.data_hall_id, data_hall_name=rack.data_hall.name, datacenter_id=rack.data_hall.datacenter_id, datacenter_name=rack.data_hall.datacenter.name)
 

@@ -79,14 +79,15 @@ These integration tests roll back their changes and preserve existing inventory.
    is fixed after creation.
 3. Select the system in the rack or list view. Under **Power connections**, enter
    PSU1 and select an outlet on PDU A, then connect PSU2 to an outlet on PDU B.
-4. Use **Power On**. The simulator enables its connected outlets and enters
-   booting, then on as polling resolves the transition. Power Off and Power Cycle
+4. Turn on at least one connected PDU outlet, then use **Power On**. The system
+   enters booting, then on as polling resolves the transition. Power Off and Power Cycle
    remain available, and outlet buttons toggle individual outlets.
 
 Only unassigned outlets in the same rack are offered. The API also rejects
 occupied outlets and duplicate PSU labels on a system. **Disconnect** removes the
 inventory connection without changing outlet power. A/B labels document wiring;
-the simulator does not model physical feed failures or electrical redundancy.
+the simulator models loss of connected outlet power, but not upstream circuits,
+UPS capacity, or electrical redundancy limits.
 
 ## Inventory search
 
@@ -104,3 +105,16 @@ characters literally. `GET /api/inventory/filters` supplies filter options.
 Simulated power transitions are evaluated at query time; search does not poll
 physical equipment. Inventory search currently returns systems, with their
 parent locations, rather than separate PDU/rack result types.
+
+### Simulated loss of PDU power
+
+A wired simulated system stays powered while at least one connected outlet is on.
+Turning off its last powered outlet immediately sets the system off, cancels any
+boot/cycle transition, stops fans, and reports no input on the affected PSUs.
+Restoring outlet power does not automatically boot the system; use Power On.
+System Power On never changes outlet power. If every connected outlet is off,
+it rejects the request with guidance to turn on a PDU outlet first. One powered
+feed is enough to boot; any other outlets remain unchanged.
+Cycling the only powered feed interrupts the system; cycling a redundant feed does
+not. Unwired demo systems retain standalone simulated BMC behavior because their
+power source is unknown. Wiring edits describe inventory and do not toggle relays.
