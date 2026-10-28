@@ -258,3 +258,19 @@ Completed docs: account guide, README startup/test corrections, current permissi
 matrix, history semantics, configuration, limitations, and remaining browser
 acceptance checklist. Real account creation status is unknown; the user was given
 the interactive bootstrap command and must enter their password privately.
+
+## October 28, 2026 — login and account UI refinements
+
+Added a Show/Hide password control to login (hidden by default and on submission).
+Header tools now use consistent icon links and a compact account dropdown for
+settings/sign-out. Account forms use shared padding, stacked labels, responsive
+fields, and separate action rows. Admin user management now presents a searchable
+user table with role/status filters, self-account marking, Add user, and a single
+selected Edit form with Save/Cancel. Existing role, activation, password-reset,
+session-revocation, and last-admin protections are unchanged. Frontend production
+build passed after these changes; no new backend behavior was introduced.
+
+User reported Edit appearing to do nothing. The form previously rendered above
+the user list, potentially outside the viewport. Editing now expands directly
+beneath the selected row and focuses/scrolls its heading into view. Add user
+remains above the list. Frontend production build passed.

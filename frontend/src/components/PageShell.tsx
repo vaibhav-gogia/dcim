@@ -1,9 +1,8 @@
 import { useAuth } from "../AuthContext";
-import { useState } from "react";
-import { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useId, useRef, useState, ReactNode } from "react";
+import { Link, NavLink } from "react-router-dom";
 
-import { colors, fontSize, radius, space } from "../theme";
+import { colors, fontSize, space } from "../theme";
 import { useTheme } from "../ThemeContext";
 
 export interface Crumb {
@@ -11,34 +10,65 @@ export interface Crumb {
   to?: string;
 }
 
+function Icon({ children }: { children: ReactNode }) {
+  return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>{children}</svg>;
+}
+
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
-  return (
-    <button
-      onClick={toggleTheme}
-      title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-      style={{
-        width: 36,
-        height: 36,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        border: `1px solid ${colors.border}`,
-        borderRadius: radius.sm,
-        background: colors.surface2,
-        color: colors.textPrimary,
-        cursor: "pointer",
-        fontSize: fontSize.md,
-      }}
-    >
-      {theme === "dark" ? "☀" : "☾"}
-    </button>
-  );
+  const label = theme === "dark" ? "Switch to light mode" : "Switch to dark mode";
+  return <button className="header-control header-icon-button" onClick={toggleTheme} title={label} aria-label={label}>
+    {theme === "dark" ? <Icon><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5" /></Icon>
+      : <Icon><path d="M20.5 14A8.5 8.5 0 0 1 10 3.5 8.5 8.5 0 1 0 20.5 14Z" /></Icon>}
+  </button>;
+}
+
+function HeaderTools() {
+  const auth = useAuth();
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const container = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const id = useId();
+  useEffect(() => {
+    if (!open) return;
+    function outside(event: PointerEvent) { if (!container.current?.contains(event.target as Node)) setOpen(false); }
+    function escape(event: KeyboardEvent) { if (event.key === "Escape") { setOpen(false); trigger.current?.focus(); } }
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", escape); };
+  }, [open]);
+  return <div className="header-tools">
+    <nav aria-label="Tools" className="header-tool-links">
+      <NavLink className="header-control header-nav-link" to="/inventory" aria-label="Search inventory" title="Search inventory">
+        <Icon><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" /></Icon><span className="header-link-label">Search inventory</span>
+      </NavLink>
+      <NavLink className="header-control header-nav-link" to="/history" aria-label="Activity" title="Activity">
+        <Icon><path d="M3 12h4l3-8 4 16 3-8h4" /></Icon><span className="header-link-label">Activity</span>
+      </NavLink>
+    </nav>
+    <span className="header-tools-divider" aria-hidden="true" />
+    <ThemeToggle />
+    <div ref={container} className="header-account" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setOpen(false); }}>
+      <button ref={trigger} className="header-control header-account-trigger" aria-expanded={open} aria-controls={id} aria-label={`Account for ${auth.user?.username}`} onClick={() => setOpen(value => !value)}>
+        <span className="header-avatar" aria-hidden="true">{auth.user?.username.slice(0, 1).toUpperCase()}</span>
+        <span className="header-username">{auth.user?.username}</span>
+        <Icon><path d={open ? "m8 14 4-4 4 4" : "m8 10 4 4 4-4"} /></Icon>
+      </button>
+      {open && <div id={id} className="header-account-dropdown">
+        <div className="header-account-info"><strong>{auth.user?.username}</strong><span>{auth.user?.role}</span></div>
+        <Link to="/account" className="header-dropdown-item" onClick={() => setOpen(false)}><Icon><circle cx="12" cy="8" r="3" /><path d="M5 21v-2a7 7 0 0 1 14 0v2" /></Icon>Account settings</Link>
+        <button className="header-dropdown-item" disabled={pending} onClick={async () => { setPending(true); setError(null); try { await auth.logout(); } catch (reason) { setError(reason instanceof Error ? reason.message : "Sign-out failed"); } finally { setPending(false); } }}>
+          <Icon><path d="M9 4H4v16h5m7-12 4 4-4 4m-7-4h11" /></Icon>{pending ? "Signing out…" : "Sign out"}
+        </button>
+        {error && <p role="alert" className="header-account-error">{error}</p>}
+      </div>}
+    </div>
+  </div>;
 }
 
 export default function PageShell({ crumbs, title, actions, children }: { crumbs: Crumb[]; title: string; actions?: ReactNode; children: ReactNode }) {
-  const auth = useAuth();
-  const [logoutError, setLogoutError] = useState<string | null>(null);
   const navigationCrumbs = crumbs.filter(crumb => crumb.label !== "DCIM");
   return (
     <div style={{ minHeight: "100vh" }}>
@@ -68,22 +98,9 @@ export default function PageShell({ crumbs, title, actions, children }: { crumbs
             </li>)}
           </ol>}
         </nav>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: space.md }}>
-          <Link to="/inventory" style={{ display: "inline-flex", alignItems: "center", gap: space.xs, color: colors.textSecondary, fontSize: fontSize.sm, textDecoration: "none" }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true" style={{ flexShrink: 0 }}>
-              <circle cx="10.5" cy="10.5" r="6.5" />
-              <path d="m16 16 4.5 4.5" />
-            </svg>
-            Search inventory
-          </Link>
-          <Link to="/history" style={{ color: colors.textSecondary, fontSize: fontSize.sm }}>Activity</Link>
-          <Link to="/account" style={{ color: colors.textSecondary, fontSize: fontSize.sm }}>{auth.user?.username} · {auth.user?.role}</Link>
-          <button onClick={async () => { try { await auth.logout(); } catch (e) { setLogoutError(e instanceof Error ? e.message : "Sign-out failed"); } }} style={{ padding: space.sm, background: colors.surface2, color: colors.textPrimary, border: `1px solid ${colors.border}`, borderRadius: radius.sm }}>Sign out</button>
-          <ThemeToggle />
-        </div>
+        <HeaderTools />
       </header>
       <main style={{ padding: space.xl }}>
-        {logoutError && <p role="alert">{logoutError}</p>}
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: space.md, marginBottom: space.lg }}>
           <h1 style={{ margin: 0, fontSize: fontSize.xl, fontWeight: 600, letterSpacing: "-0.025em", color: colors.textPrimary }}>{title}</h1>
           {actions && <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: space.sm }}>{actions}</div>}

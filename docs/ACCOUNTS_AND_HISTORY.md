@@ -55,7 +55,11 @@ operations still require a valid session.
 ## Account management
 
 Click your username/role in the navigation to open **Account**. Administrators
-can create accounts, change roles, disable/reactivate users, and reset passwords.
+see a user table with usernames, roles, and active/disabled status. Search by
+username or filter by role/status. Use **Add user** to create an account and
+**Edit** beside a user to change roles, disable/reactivate access, or reset a
+password. The selected editor expands directly beneath its user row, scrolls into view,
+and receives keyboard focus. Save and Cancel controls stay with that editor.
 Accounts are disabled rather than deleted, and the API prevents disabling or
 demoting the last active administrator.
 
