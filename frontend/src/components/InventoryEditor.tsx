@@ -22,7 +22,7 @@ export const pduEditFields: Field[] = [{ key: "name", label: "Name", required: t
 export const systemFields: Field[] = [
   { key: "name", label: "Name", required: true },
   { key: "u_position", label: "Starting U", type: "number", min: 1, defaultValue: 1 },
-  { key: "u_height", label: "Height (U)", type: "number", min: 1, defaultValue: 1 },
+  { key: "u_height", label: "Height (U)", type: "number", min: 1, defaultValue: 3 },
   { key: "system_type", label: "System type", required: true, defaultValue: "server" },
   { key: "manufacturer", label: "Manufacturer" }, { key: "model", label: "Model" },
   { key: "serial_number", label: "Serial number" },

@@ -274,3 +274,32 @@ User reported Edit appearing to do nothing. The form previously rendered above
 the user list, potentially outside the viewport. Editing now expands directly
 beneath the selected row and focuses/scrolls its heading into view. Add user
 remains above the list. Frontend production build passed.
+
+## October 29, 2026 — system deletion UI
+
+User approved adding Delete system. Admins now have a control in system details
+with exact-name confirmation and a warning about permanent inventory/wiring
+removal without physical power commands. Success closes the selection, clears
+system-specific cached queries, and refreshes rack/PDU/search/history data.
+Uses the existing admin-only audited DELETE endpoint. Added an isolated integration
+regression for wiring cleanup, unchanged outlet power, preserved neighboring
+inventory, and retained deletion history. No schema change.
+
+## October 29, 2026 — full physical rack elevation
+
+User requested an accurate view of occupied and open space. Rack elevation now
+shows the full configured U capacity instead of cropping unused top space.
+Every U position is numbered, empty slots are marked Open, and the header shows
+occupied/open U counts. Corrected a one-row offset in system placement so U1
+anchors to the bottom row and multi-U systems cover their exact mounting range.
+This supersedes the earlier compact/cropped-rack visual preference. System blocks
+remain selectable, including via keyboard. No inventory data or schema changes.
+
+## October 29, 2026 — compact 3U visual divisions
+
+User approved trying 14 major visual divisions for a 42U rack while retaining
+physical 1U positions. Elevation now uses 14px per U (previously 21px), major
+lines/range labels every 3U, and subtle 1U subdivisions. Empty runs show their
+open-U count. Other capacities include a partial top division when necessary.
+New-system UI forms default to 3U; existing equipment sizes/positions and backend
+API defaults are unchanged. Equipment can still have any valid integer U height.

@@ -1,3 +1,6 @@
+import { useState } from "react";
+import DeleteSystem from "./DeleteSystem";
+import { InventoryButton } from "./InventoryEditor";
 import { usePermissions } from "../AuthContext";
 import ActionHistory from "./ActionHistory";
 import { usePowerAction, useSystemDetail, useSystemHealth } from "../api/hooks";
@@ -24,7 +27,8 @@ export default function SystemDetailPanel({
   rackId: string;
   onClose: () => void;
 }) {
-  const { canOperate } = usePermissions();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { canOperate, canManage } = usePermissions();
   const { data: system } = useSystemDetail(systemId);
   const { data: health } = useSystemHealth(systemId);
   const powerAction = usePowerAction(systemId, rackId);
@@ -65,6 +69,10 @@ export default function SystemDetailPanel({
       </div>
 
       {powerAction.error && <p role="alert" style={{ color: colors.statusCritical }}>{powerAction.error.message}</p>}
+      {canManage && <div style={{ marginTop: space.md }}>
+        <InventoryButton type="button" disabled={powerAction.isPending} style={{ color: colors.statusCritical }} onClick={() => setDeletingId(systemId)}>Delete system</InventoryButton>
+        {deletingId === systemId && <DeleteSystem key={systemId} systemId={systemId} name={system.name} onDeleted={onClose} onCancel={() => setDeletingId(null)} />}
+      </div>}
       <PowerWiring key={systemId} systemId={systemId} rackId={rackId} />
 
       <ActionHistory key={systemId} systemId={systemId} />

@@ -165,3 +165,25 @@ async def test_unknown_driver_failure_is_not_reported_as_success(client, monkeyp
     events = (await client.get('/history', params={'system_id': system['id']})).json()['items']
     assert any(e['outcome'] == 'unknown' and e['status_code'] == 500 for e in events)
     assert not any(e['outcome'] == 'succeeded' and '/power/on' in e['action'] for e in events)
+
+
+async def test_delete_system_frees_wiring_preserves_outlet_power_and_history(client):
+    dc = await create(client, '/datacenters', {'name': 'delete-system-' + uuid.uuid4().hex})
+    hall = await create(client, f"/datacenters/{dc['id']}/data-halls", {'name': 'Hall'})
+    rack = await create(client, f"/data-halls/{hall['id']}/racks", {'name': 'Rack'})
+    system = await create(client, f"/racks/{rack['id']}/systems", {'name': 'Remove this system', 'u_position': 1})
+    neighbor = await create(client, f"/racks/{rack['id']}/systems", {'name': 'Keep this system', 'u_position': 2})
+    pdu = await create(client, f"/racks/{rack['id']}/pdus", {'name': 'PDU', 'outlet_count': 1})
+    outlet = (await client.get(f"/racks/{rack['id']}/pdus")).json()[0]['outlets'][0]
+    connection = await create(client, f"/systems/{system['id']}/power-connections", {'psu_label': 'PSU1', 'pdu_outlet_id': outlet['id']})
+    assert (await client.post(f"/pdus/{pdu['id']}/outlets/{outlet['id']}/on")).status_code == 200
+    assert (await client.delete(f"/systems/{system['id']}")).status_code == 204
+    assert (await client.get(f"/systems/{system['id']}")).status_code == 404
+    assert (await client.get(f"/systems/{neighbor['id']}")).status_code == 200
+    assert (await client.get(f"/racks/{rack['id']}")).status_code == 200
+    assert (await client.get(f"/pdus/{pdu['id']}")).status_code == 200
+    remaining = (await client.get(f"/racks/{rack['id']}/pdus")).json()[0]['outlets'][0]
+    assert remaining['state'] == 'on' and remaining['connected_system_id'] is None
+    assert (await client.delete(f"/power-connections/{connection['id']}")).status_code == 404
+    events = (await client.get('/history', params={'system_id': system['id']})).json()['items']
+    assert any(e['action'].startswith('DELETE') and e['outcome'] == 'succeeded' and e['target'] == 'Remove this system' for e in events)

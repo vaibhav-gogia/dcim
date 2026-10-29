@@ -71,8 +71,8 @@ in the visual or list view to reveal **Edit selected system**. Rack positions us
 floor column/row coordinates; system positions start at U1 at the bottom.
 Systems must fit within rack capacity and cannot overlap existing systems.
 
-Power and health remain simulated. Racks can be deleted from their page with
-a typed confirmation; other inventory deletion remains available through the API.
+Power and health remain simulated. Racks can be deleted from their page, and systems from their detail panel,
+with typed-name confirmations. Other inventory deletion remains available through the API.
 
 ## Data halls
 
@@ -161,3 +161,12 @@ On a rack page, choose **Delete rack**. Review the counts of systems, PDUs,
 outlets, and power connections, then type the rack's exact name and confirm.
 This permanently deletes those inventory records and returns to the hall.
 It does not issue power commands to physical equipment.
+
+### Deleting a system
+
+As an administrator, select a system in the rack or list view and choose
+**Delete system** in its detail panel. Type its exact name and choose
+**Permanently delete system**, or Cancel. This removes the system and its PSU
+wiring records, then closes the panel and refreshes inventory. The rack, PDUs,
+outlets, and action history remain. Deletion does not change outlet power or
+send a hardware power-off command.
